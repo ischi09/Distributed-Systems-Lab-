@@ -9,16 +9,20 @@ from .networks import InvariantDeepSet, MLP
 
 
 class DeepSetExperiment:
-    def __init__(self, type: str, log_dir: str, lr=1e-3, weight_decay=5e-3):
+    def __init__(
+            self, type: str, use_multisets: bool, log_dir: str, lr=1e-3,
+            weight_decay=5e-3):
         self.use_cuda = torch.cuda.is_available()
 
         # Set up dataset.
         if type == 'max':
             def label_generator(x: torch.Tensor): return x.max()
         elif type == 'mode':
-            def label_generator(x: torch.Tensor): return x.mode()
+            def label_generator(x: torch.Tensor):
+                return torch.squeeze(x).mode().values
         elif type == 'cardinality':
-            def label_generator(x: torch.Tensor): return torch.tensor(len(x))
+            def label_generator(x: torch.Tensor):
+                return torch.tensor(len(x), dtype=torch.float)
         else:
             def label_generator(x: torch.Tensor): return x.sum()
 
@@ -28,7 +32,7 @@ class DeepSetExperiment:
             min_value=0,
             max_value=10,
             label_generator=label_generator,
-            generate_multisets=False
+            generate_multisets=use_multisets
             )
 
         self.test_set = SetDataset(
@@ -37,7 +41,7 @@ class DeepSetExperiment:
             min_value=0,
             max_value=10,
             label_generator=label_generator,
-            generate_multisets=False
+            generate_multisets=use_multisets
             )
 
         # Set up model.

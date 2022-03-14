@@ -13,10 +13,13 @@ def main(random_seed):
     torch.cuda.manual_seed_all(random_seed)
 
     experiment_type = 'sum'
-    print(f'Running experiment of type: {experiment_type}')
+    use_multisets = True
+    print(
+        f"Running experiment of type '{experiment_type}' with {'multisets' if use_multisets else 'sets'}")
 
     experiment = DeepSetExperiment(
         type=experiment_type,
+        use_multisets=use_multisets,
         log_dir='./log',
         lr=1e-3)
 
