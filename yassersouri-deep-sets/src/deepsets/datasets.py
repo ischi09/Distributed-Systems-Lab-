@@ -1,4 +1,5 @@
 from typing import Tuple
+import random
 
 import numpy as np
 import torch
@@ -12,35 +13,59 @@ from .settings import DATA_ROOT
 MNIST_TRANSFORM = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])
 
 
-class MNISTSummation(Dataset):
-    def __init__(self, min_len: int, max_len: int, dataset_len: int, train: bool = True, transform: Compose = None):
-        self.min_len = min_len
-        self.max_len = max_len
-        self.dataset_len = dataset_len
-        self.train = train
-        self.transform = transform
+# class MNISTSummation(Dataset):
+#     def __init__(self, min_len: int, max_len: int, dataset_len: int, train: bool = True, transform: Compose = None):
+#         self.min_len = min_len
+#         self.max_len = max_len
+#         self.dataset_len = dataset_len
+#         self.train = train
+#         self.transform = transform
 
-        self.mnist = MNIST(DATA_ROOT, train=self.train, transform=self.transform, download=True)
-        mnist_len = self.mnist.__len__()
-        mnist_items_range = np.arange(0, mnist_len)
+#         self.mnist = MNIST(DATA_ROOT, train=self.train, transform=self.transform, download=True)
+#         mnist_len = self.mnist.__len__()
+#         mnist_items_range = np.arange(0, mnist_len)
 
-        items_len_range = np.arange(self.min_len, self.max_len + 1)
-        items_len = np.random.choice(items_len_range, size=self.dataset_len, replace=True)
-        self.mnist_items = []
-        for i in range(self.dataset_len):
-            self.mnist_items.append(np.random.choice(mnist_items_range, size=items_len[i], replace=True))
+#         items_len_range = np.arange(self.min_len, self.max_len + 1)
+#         items_len = np.random.choice(items_len_range, size=self.dataset_len, replace=True)
+#         self.mnist_items = []
+#         for i in range(self.dataset_len):
+#             self.mnist_items.append(np.random.choice(mnist_items_range, size=items_len[i], replace=True))
 
-    def __len__(self) -> int:
-        return self.dataset_len
+#     def __len__(self) -> int:
+#         return self.dataset_len
 
-    def __getitem__(self, item: int) -> Tuple[FloatTensor, FloatTensor]:
-        mnist_items = self.mnist_items[item]
+#     def __getitem__(self, item: int) -> Tuple[FloatTensor, FloatTensor]:
+#         mnist_items = self.mnist_items[item]
 
-        the_sum = 0
-        images = []
-        for mi in mnist_items:
-            img, target = self.mnist.__getitem__(mi)
-            the_sum += target
-            images.append(img)
+#         the_sum = 0
+#         images = []
+#         for mi in mnist_items:
+#             img, target = self.mnist.__getitem__(mi)
+#             the_sum += target
+#             images.append(img)
 
-        return torch.stack(images, dim=0), torch.FloatTensor([the_sum])
+#         return torch.stack(images, dim=0), torch.FloatTensor([the_sum])
+
+class BasicDiscreteSet(Dataset):
+    def __init__(self, n, max_m, val_sizes):
+        self.n = n
+        for set_num in n:
+            self.items[set_num] = torch.rand(random.randint(1,max_m)) * val_sizes
+        
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, item):
+        # TODO find out wtf the other thing is doing
+        return self.items[item] # What is the second item??
+
+
+class MultiDiscreteSet (Dataset):
+    def __init__(self, n, max_m, val_sizes ):
+        self.n = n
+
+        for set_num in n:
+            self.items[set_num] = 
+
+
+        
