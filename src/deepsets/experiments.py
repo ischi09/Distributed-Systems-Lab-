@@ -4,7 +4,7 @@ from tensorboardX import SummaryWriter
 from torch import optim
 from tqdm import tqdm
 
-from .datasets import DummySummation, DummyMax, DummyCardinality
+from .datasets import SetDataset
 from .networks import InvariantDeepSet, MLP
 
 
@@ -14,14 +14,31 @@ class DeepSetExperiment:
 
         # Set up dataset.
         if type == 'max':
-            self.train_set = DummyMax(is_train=True)
-            self.test_set = DummyMax(is_train=False)
+            def label_generator(x: torch.Tensor): return x.max()
+        elif type == 'mode':
+            def label_generator(x: torch.Tensor): return x.mode()
         elif type == 'cardinality':
-            self.train_set = DummyCardinality(is_train=True)
-            self.test_set = DummyCardinality(is_train=False)
+            def label_generator(x: torch.Tensor): return torch.tensor(len(x))
         else:
-            self.train_set = DummySummation(is_train=True)
-            self.test_set = DummySummation(is_train=False)
+            def label_generator(x: torch.Tensor): return x.sum()
+
+        self.train_set = SetDataset(
+            n_samples=100,
+            max_set_size=10,
+            min_value=0,
+            max_value=10,
+            label_generator=label_generator,
+            generate_multisets=False
+            )
+
+        self.test_set = SetDataset(
+            n_samples=10,
+            max_set_size=10,
+            min_value=0,
+            max_value=10,
+            label_generator=label_generator,
+            generate_multisets=False
+            )
 
         # Set up model.
         self.model = InvariantDeepSet(
@@ -53,7 +70,7 @@ class DeepSetExperiment:
                 'train_loss', loss, i + len(self.train_set) * epoch_num)
 
     def train_item(self, index: int) -> float:
-        x, target = self.train_set.__getitem__(index)
+        x, target = self.train_set[index]
         if self.use_cuda:
             x, target = x.cuda(), target.cuda()
 
@@ -80,7 +97,7 @@ class DeepSetExperiment:
 
         n_correct = 0
         for i in tqdm(range(len(self.test_set))):
-            x, target = self.test_set.__getitem__(i)
+            x, target = self.test_set[i]
 
             if self.use_cuda:
                 x = x.cuda()
@@ -92,7 +109,8 @@ class DeepSetExperiment:
             if self.use_cuda:
                 pred = pred.cpu().numpy().flatten()
 
-            if F.mse_loss(pred, target) < 0.0001:
+            error = torch.abs(target - pred)
+            if error < 0.1:
                 n_correct += 1
 
         return n_correct / len(self.test_set)
