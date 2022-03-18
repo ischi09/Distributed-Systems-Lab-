@@ -1,0 +1,34 @@
+defaults:
+  - n_samples: 10000
+  - max_set_size: 10
+  - min_value: 0
+  - max_value: 10
+  - label: sum # Independent of accumulator
+  - multisets: False
+
+paths:
+  log: ./runs
+ # data: ./dataset
+  results: ./results/results.csv
+
+experiment:
+  epochs: 20
+  lr: 5e-5
+  batch_size: 128
+  random_seed: 99
+  loss: mse
+  weight_decay: 5e-3
+
+model:
+  # TODO Figure out how to pass functions through yaml/hydra
+  accumulator: sum
+  laten_dim: 10
+
+trainset:
+  n_samples: 100000
+
+validset:
+  n_samples: 1000
+
+testset:
+#   n_samples: 100
