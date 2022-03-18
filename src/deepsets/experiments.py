@@ -5,65 +5,73 @@ from torch import optim
 from tqdm import tqdm
 
 from .datasets import SetDataset
-from .networks import InvariantDeepSet, MLP
+from .networks import DeepSetsInvariant, MLP, accumulate_sum
 
 
 class DeepSetExperiment:
     def __init__(
-            self, type: str, use_multisets: bool, log_dir: str, lr=1e-3,
-            weight_decay=5e-3):
+        self, type: str, use_multisets: bool, log_dir: str, lr=1e-3, weight_decay=5e-3
+    ):
         self.use_cuda = torch.cuda.is_available()
 
         # Set up dataset.
-        if type == 'max':
-            def label_generator(x: torch.Tensor): return x.max()
-        elif type == 'mode':
+        if type == "max":
+
+            def label_generator(x: torch.Tensor):
+                return x.max()
+
+        elif type == "mode":
+
             def label_generator(x: torch.Tensor):
                 return torch.squeeze(x).mode().values
-        elif type == 'cardinality':
+
+        elif type == "cardinality":
+
             def label_generator(x: torch.Tensor):
                 return torch.tensor(len(x), dtype=torch.float)
+
         else:
-            def label_generator(x: torch.Tensor): return x.sum()
+
+            def label_generator(x: torch.Tensor):
+                return x.sum()
 
         self.train_set = SetDataset(
-            n_samples=100,
+            n_samples=10000,
             max_set_size=10,
             min_value=0,
             max_value=10,
             label_generator=label_generator,
-            generate_multisets=use_multisets
-            )
+            generate_multisets=use_multisets,
+        )
 
         self.test_set = SetDataset(
-            n_samples=10,
+            n_samples=1000,
             max_set_size=10,
             min_value=0,
             max_value=10,
             label_generator=label_generator,
-            generate_multisets=use_multisets
-            )
+            generate_multisets=use_multisets,
+        )
 
         # Set up model.
-        self.model = InvariantDeepSet(
+        self.model = DeepSetsInvariant(
             phi=MLP(input_dim=1, hidden_dim=10, output_dim=10),
-            rho=MLP(input_dim=10, hidden_dim=10, output_dim=1)
-            )
+            rho=MLP(input_dim=10, hidden_dim=10, output_dim=1),
+            accumulator=accumulate_sum,
+        )
 
         if self.use_cuda:
             self.model.cuda()
 
         # Set up optimizer
         self.optimizer = optim.Adam(
-            self.model.parameters(),
-            lr=lr,
-            weight_decay=weight_decay
-            )
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
 
         # Set up logging.
         self.summary_writer = SummaryWriter(
-            log_dir=f'{log_dir}/exp-lr:{lr}-wd:{weight_decay}'
-            )
+            log_dir=f"{log_dir}/exp-lr:{lr}-wd:{weight_decay}"
+        )
 
     def train_epoch(self, epoch_num: int):
         self.model.train()
@@ -71,7 +79,8 @@ class DeepSetExperiment:
             loss = self.train_item(i)
 
             self.summary_writer.add_scalar(
-                'train_loss', loss, i + len(self.train_set) * epoch_num)
+                "train_loss", loss, i + len(self.train_set) * epoch_num
+            )
 
     def train_item(self, index: int) -> float:
         x, target = self.train_set[index]

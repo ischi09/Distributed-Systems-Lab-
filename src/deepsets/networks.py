@@ -1,18 +1,30 @@
 # Based on https://github.com/yassersouri/pytorch-deep-sets
 
+from typing import Callable
+
 import torch
 import torch.nn as nn
 
 
-class InvariantDeepSet(nn.Module):
-    def __init__(self, phi: nn.Module, rho: nn.Module):
+def accumulate_sum(x: torch.FloatTensor) -> torch.FloatTensor:
+    return x.sum(axis=0)
+
+
+class DeepSetsInvariant(nn.Module):
+    def __init__(
+        self,
+        phi: nn.Module,
+        rho: nn.Module,
+        accumulator: Callable[[torch.FloatTensor], torch.FloatTensor],
+    ):
         super().__init__()
         self.phi = phi
         self.rho = rho
+        self.accumulator = accumulator
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         x = self.phi(x)  # x.shape = (set_size, input_dim)
-        x = x.sum(axis=0)
+        x = self.accumulator(x)
         return self.rho(x)
 
 
@@ -24,8 +36,8 @@ class MLP(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, output_dim)
-            )
+            nn.Linear(hidden_dim, output_dim),
+        )
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         return self.layers(x)
