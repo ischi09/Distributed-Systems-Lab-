@@ -1,97 +1,103 @@
 import torch
-import torch.nn.functional as F
-from tensorboardX import SummaryWriter
 from torch import optim
+import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
+
 from tqdm import tqdm
 
+from .config import Config
 from .datasets import SetDataset
-from .networks import DeepSetsInvariant, MLP, accumulate_sum
+
+LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
 
 
-class DeepSetExperiment:
+class Experiment:
     def __init__(
-        self, type: str, use_multisets: bool, log_dir: str, lr=1e-3, weight_decay=5e-3
+        self,
+        config: Config,
+        model: torch.nn.Module,
+        train_set: SetDataset,
+        valid_set: SetDataset,
+        test_set: SetDataset,
     ):
         self.use_cuda = torch.cuda.is_available()
+        self.epoch_counter = 0
+        self.config = config
 
-        # Set up dataset.
-        if type == "max":
-
-            def label_generator(x: torch.Tensor):
-                return x.max()
-
-        elif type == "mode":
-
-            def label_generator(x: torch.Tensor):
-                return torch.squeeze(x).mode().values
-
-        elif type == "cardinality":
-
-            def label_generator(x: torch.Tensor):
-                return torch.tensor(len(x), dtype=torch.float)
-
-        else:
-
-            def label_generator(x: torch.Tensor):
-                return x.sum()
-
-        self.train_set = SetDataset(
-            n_samples=10000,
-            max_set_size=10,
-            min_value=0,
-            max_value=10,
-            label_generator=label_generator,
-            generate_multisets=use_multisets,
-        )
-
-        self.test_set = SetDataset(
-            n_samples=1000,
-            max_set_size=10,
-            min_value=0,
-            max_value=10,
-            label_generator=label_generator,
-            generate_multisets=use_multisets,
-        )
-
-        # Set up model.
-        self.model = DeepSetsInvariant(
-            phi=MLP(input_dim=1, hidden_dim=10, output_dim=10),
-            rho=MLP(input_dim=10, hidden_dim=10, output_dim=1),
-            accumulator=accumulate_sum,
-        )
-
+        self.model = model
         if self.use_cuda:
             self.model.cuda()
 
-        # Set up optimizer
+        self.train_set = train_set
+        self.valid_set = valid_set
+        self.test_set = test_set
+
+        lr = config.experiment.lr
+        weight_decay = config.experiment.weight_decay
+
         self.optimizer = optim.Adam(
-            self.model.parameters(), lr=lr, weight_decay=weight_decay
+            self.model.parameters(),
+            lr=lr,
+            weight_decay=weight_decay,
         )
 
-        # Set up logging.
+        self.loss_fn = LOSS_FNS[config.experiment.loss]
+
         self.summary_writer = SummaryWriter(
-            log_dir=f"{log_dir}/exp-lr:{lr}-wd:{weight_decay}"
+            log_dir=f"{config.paths.log}/exp-lr:{lr}-wd:{weight_decay}"
         )
 
-    def train_epoch(self, epoch_num: int):
+    def run(self) -> None:
+        print("Running experiment with parameters:")
+        print(f"    label: {self.config.trainset.label}")
+        print(f"    loss: {self.config.experiment.loss}")
+        print(f"    multisets: {'yes' if self.config.trainset.multisets else 'no'}")
+        self.train()
+        self.test()
+
+    def train(self) -> None:
+        for _ in range(self.config.experiment.epochs):
+            print(f"\n*** Epoch {self.epoch_counter} ***")
+
+            print("Training model...")
+            avg_train_loss = self.__train_model("train_loss")
+            print(f"Average train loss: {avg_train_loss}")
+
+            print("Validating model...")
+            avg_valid_loss = self.__eval_model(self.valid_set, "valid_loss")
+            print(f"Average validation loss: {avg_valid_loss}")
+
+            self.epoch_counter += 1
+
+    def test(self) -> None:
+        print("\nTesting model...")
+        avg_test_loss = self.__eval_model(self.test_set, "test_loss")
+        print(f"Average test loss: {avg_test_loss}")
+
+    def __train_model(self, loss_id: str) -> None:
         self.model.train()
-        for i in tqdm(range(len(self.train_set))):
-            loss = self.train_item(i)
+        train_set_size = len(self.train_set)
+        total_train_loss = 0.0
 
-            self.summary_writer.add_scalar(
-                "train_loss", loss, i + len(self.train_set) * epoch_num
-            )
+        for i in tqdm(range(train_set_size)):
+            x, label = self.train_set[i]
+            train_loss = self.__train_step(x, label)
+            total_train_loss += train_loss
 
-    def train_item(self, index: int) -> float:
-        x, target = self.train_set[index]
+            step_counter = train_set_size * self.epoch_counter + i
+            self.summary_writer.add_scalar(loss_id, train_loss, step_counter)
+
+        return total_train_loss / train_set_size
+
+    def __train_step(self, x: torch.FloatTensor, label: torch.FloatTensor) -> float:
         if self.use_cuda:
-            x, target = x.cuda(), target.cuda()
+            x, label = x.cuda(), label.cuda()
 
         self.optimizer.zero_grad()
-        pred = self.model.forward(x)
+        pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
         pred = torch.squeeze(pred, dim=0)
-        the_loss = F.mse_loss(pred, target)
+        the_loss = self.loss_fn(pred, label)
 
         the_loss.backward()
         self.optimizer.step()
@@ -105,25 +111,36 @@ class DeepSetExperiment:
 
         return the_loss_float
 
-    def evaluate(self) -> float:
+    def __eval_model(self, dataset: SetDataset, loss_id: str) -> float:
         self.model.eval()
+        dataset_size = len(dataset)
+        total_eval_loss = 0.0
 
-        n_correct = 0
-        for i in tqdm(range(len(self.test_set))):
-            x, target = self.test_set[i]
+        with torch.no_grad():
+            for i in tqdm(range(dataset_size)):
+                x, label = dataset[i]
+                eval_loss = self.__eval_step(x, label)
+                total_eval_loss += eval_loss
 
-            if self.use_cuda:
-                x = x.cuda()
+                step_counter = dataset_size * self.epoch_counter + i
+                self.summary_writer.add_scalar(loss_id, eval_loss, step_counter)
 
-            pred = self.model.forward(x)
-            # To prevent error warning about mismatching dimensions.
-            pred = torch.squeeze(pred, dim=0)
+        return total_eval_loss / dataset_size
 
-            if self.use_cuda:
-                pred = pred.cpu().numpy().flatten()
+    def __eval_step(self, x: torch.FloatTensor, label: torch.FloatTensor) -> float:
+        if self.use_cuda:
+            x, label = x.cuda(), label.cuda()
 
-            error = torch.abs(target - pred)
-            if error < 0.1:
-                n_correct += 1
+        pred = self.model(x)
+        # To prevent error warning about mismatching dimensions.
+        pred = torch.squeeze(pred, dim=0)
+        the_loss = self.loss_fn(pred, label)
 
-        return n_correct / len(self.test_set)
+        the_loss_tensor = the_loss.data
+        if self.use_cuda:
+            the_loss_tensor = the_loss_tensor.cpu()
+
+        the_loss_numpy = the_loss_tensor.numpy().flatten()
+        the_loss_float = float(the_loss_numpy[0])
+
+        return the_loss_float
