@@ -11,13 +11,9 @@ class InvariantDeepSet(nn.Module):
         self.rho = rho
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
-        # Map to latent representation and sum over it.
-        sum = torch.zeros((self.phi.output_dim,))
-        for elem in x:
-            sum += self.phi.forward(elem)
-
-        # Apply final map to produce output.
-        return self.rho.forward(sum)
+        x = self.phi(x)  # x.shape = (set_size, input_dim)
+        x = x.sum(axis=0)
+        return self.rho(x)
 
 
 class MLP(nn.Module):
