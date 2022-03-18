@@ -48,3 +48,12 @@ class Testset:
   max_value: int
   label: str
   multisets: bool
+
+@dataclass
+class Config:
+    paths: Paths
+    experiment: Experiment
+    model: Model
+    trainset: Trainset
+    validset: Validset
+    testset: Testset
