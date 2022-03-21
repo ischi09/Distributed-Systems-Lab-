@@ -1,14 +1,10 @@
-import click
-from isort import Config
 import numpy as np
 import hydra
 import torch
 
+from deepsets.config import Config
 from deepsets.experiments import DeepSetExperiment
 
-
-@click.command()
-@click.option('--random-seed', envvar='SEED', default=42)
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -17,8 +13,8 @@ def main(cfg:Config):
     torch.manual_seed(cfg.experiment.random_seed)
     torch.cuda.manual_seed_all(cfg.experiment.random_seed)
 
-    experiment_type = cfg.label # TODO Figure out how to access the default value
-    use_multisets = cfg.multisets
+    experiment_type = cfg.trainset.label
+    use_multisets = cfg.trainset.multisets
     print(
         f"Running experiment of type '{experiment_type}' with {'multisets' if use_multisets else 'sets'}")
 

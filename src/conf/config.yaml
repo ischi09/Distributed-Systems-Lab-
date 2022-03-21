@@ -1,13 +1,5 @@
-defaults:
-  - n_samples: 10000
-  - max_set_size: 10
-  - min_value: 0
-  - max_value: 10
-  - label: sum # Independent of accumulator
-  - multisets: False
-
 paths:
-  log: ${hydra:runtime.cwd}/runs
+  log: ${hydra:runtime.cwd}/log
  # data: ./dataset
   results: ${hydra:runtime.cwd}/results/results.csv
 
@@ -20,15 +12,30 @@ experiment:
   weight_decay: 5e-3
 
 model:
-  # TODO Figure out how to pass functions through yaml/hydra
   accumulator: sum
   laten_dim: 10
 
 trainset:
   n_samples: 100000
+  max_set_size: 10
+  min_value: 0
+  max_value: 10
+  label: sum # Independent of accumulator
+  multisets: False
 
 validset:
   n_samples: 1000
+  max_set_size: 10
+  min_value: 0
+  max_value: 10
+  label: sum # Independent of accumulator
+  multisets: False
 
 testset:
+  n_samples: 10000
+  max_set_size: 10
+  min_value: 0
+  max_value: 10
+  label: sum # Independent of accumulator
+  multisets: False
 #   n_samples: 100
