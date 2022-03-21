@@ -1,3 +1,6 @@
+import os
+import pandas as pd
+
 import torch
 from torch import optim
 import torch.nn.functional as F
@@ -7,6 +10,7 @@ from tqdm import tqdm
 
 from .config import Config
 from .datasets import SetDataset
+from .networks import count_parameters
 
 LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
 
@@ -16,6 +20,7 @@ class Experiment:
         self,
         config: Config,
         model: torch.nn.Module,
+        model_name: str,  # TODO: not elegant, maybe experiment name in config better
         train_set: SetDataset,
         valid_set: SetDataset,
         test_set: SetDataset,
@@ -27,6 +32,8 @@ class Experiment:
         self.model = model
         if self.use_cuda:
             self.model.cuda()
+
+        self.model_name = model_name
 
         self.train_set = train_set
         self.valid_set = valid_set
@@ -47,13 +54,40 @@ class Experiment:
             log_dir=f"{config.paths.log}/exp-lr:{lr}-wd:{weight_decay}"
         )
 
+        self.results = pd.DataFrame(
+            columns=[
+                "model",
+                "n_params",
+                "n_samples",
+                "max_set_size",
+                "min_value",
+                "max_value",
+                "label",
+                "multisets",
+                "loss",
+                "epochs",
+                "lr",
+                "weight_decay",
+                "avg_test_loss",
+            ]
+        )
+
     def run(self) -> None:
         print("Running experiment with parameters:")
         print(f"    label: {self.config.trainset.label}")
         print(f"    loss: {self.config.experiment.loss}")
         print(f"    multisets: {'yes' if self.config.trainset.multisets else 'no'}")
+
         self.train()
         self.test()
+
+        print("Saving results...")
+        self.results.to_csv(
+            self.config.paths.results,
+            mode="a",
+            header=not os.path.isfile(self.config.paths.results),
+            index=False,
+        )
 
     def train(self) -> None:
         for _ in range(self.config.experiment.epochs):
@@ -73,6 +107,26 @@ class Experiment:
         print("\nTesting model...")
         avg_test_loss = self.__eval_model(self.test_set, "test_loss")
         print(f"Average test loss: {avg_test_loss}")
+
+        testset_config = self.config.testset
+        exp_config = self.config.experiment
+
+        results = {
+            "model": self.model_name,  # TODO: Generate from model.
+            "n_params": count_parameters(self.model),
+            "n_samples": testset_config.n_samples,
+            "max_set_size": testset_config.max_set_size,
+            "min_value": testset_config.min_value,
+            "max_value": testset_config.max_value,
+            "label": testset_config.label,
+            "multisets": testset_config.multisets,
+            "loss": exp_config.loss,
+            "epochs": exp_config.epochs,
+            "lr": exp_config.lr,
+            "weight_decay": exp_config.weight_decay,
+            "avg_test_loss": avg_test_loss,
+        }
+        self.results.loc[len(self.results.index)] = list(results.values())
 
     def __train_model(self, loss_id: str) -> None:
         self.model.train()

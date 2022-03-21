@@ -10,6 +10,10 @@ def accumulate_sum(x: torch.FloatTensor) -> torch.FloatTensor:
     return x.sum(axis=0)
 
 
+def count_parameters(model: nn.Module) -> int:
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 class DeepSetsInvariant(nn.Module):
     def __init__(
         self,

@@ -2,7 +2,7 @@ import click
 import numpy as np
 import torch
 
-from deepsets.config import Config, Paths, Trainset
+from deepsets.config import Config, Paths, Trainset, Testset
 from deepsets.config import Experiment as ExperimentConfig
 from deepsets.experiments import Experiment
 from deepsets.networks import DeepSetsInvariant, MLP, accumulate_sum
@@ -75,17 +75,18 @@ def main(random_seed):
     )
 
     config = Config(
-        Paths("./log", None),
-        ExperimentConfig(2, 1e-3, 64, 42, "mse", 5e-4),
+        Paths("./log", "./results/results.csv"),
+        ExperimentConfig(1, 1e-3, 64, 42, "mse", 5e-4),
         None,
         Trainset(None, None, None, None, experiment_type, use_multisets),
         None,
-        None,
+        Testset(1000, 10, -5, 5, experiment_type, use_multisets),
     )
 
     experiment = Experiment(
         config=config,
         model=model,
+        model_name="deepsets_invariant_mlp_sum_mlp",
         train_set=train_set,
         valid_set=valid_set,
         test_set=test_set,
