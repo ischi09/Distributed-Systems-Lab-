@@ -1,86 +1,30 @@
-import click
 import numpy as np
+import hydra
 import torch
 
-from deepsets.config import Config, Paths, Trainset, Testset
-from deepsets.config import Experiment as ExperimentConfig
+from deepsets.config import Config
+from deepsets.datasets import generate_datasets
+from deepsets.networks import DeepSetsInvariant, MLP
 from deepsets.experiments import Experiment
-from deepsets.networks import DeepSetsInvariant, MLP, accumulate_sum
-from deepsets.datasets import SetDataset
 
 
-@click.command()
-@click.option("--random-seed", envvar="SEED", default=42)
-def main(random_seed):
-    np.random.seed(random_seed)
-    torch.manual_seed(random_seed)
-    torch.cuda.manual_seed_all(random_seed)
+def set_random_seeds(seed: int) -> None:
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
-    experiment_type = "sum"
-    use_multisets = True
 
-    # Set up dataset.
-    if experiment_type == "max":
+@hydra.main(config_path="conf", config_name="config")
+def main(config: Config):
+    set_random_seeds(config.experiment.random_seed)
 
-        def label_generator(x: torch.Tensor):
-            return x.max()
-
-    elif experiment_type == "mode":
-
-        def label_generator(x: torch.Tensor):
-            return torch.squeeze(x).mode().values
-
-    elif experiment_type == "cardinality":
-
-        def label_generator(x: torch.Tensor):
-            return torch.tensor(len(x), dtype=torch.float)
-
-    else:
-
-        def label_generator(x: torch.Tensor):
-            return x.sum()
-
-    train_set = SetDataset(
-        n_samples=10000,
-        max_set_size=10,
-        min_value=0,
-        max_value=10,
-        label_generator=label_generator,
-        generate_multisets=use_multisets,
-    )
-
-    valid_set = SetDataset(
-        n_samples=1000,
-        max_set_size=10,
-        min_value=0,
-        max_value=10,
-        label_generator=label_generator,
-        generate_multisets=use_multisets,
-    )
-
-    test_set = SetDataset(
-        n_samples=1000,
-        max_set_size=10,
-        min_value=0,
-        max_value=10,
-        label_generator=label_generator,
-        generate_multisets=use_multisets,
-    )
+    train_set, valid_set, test_set = generate_datasets(config)
 
     # Set up model.
     model = DeepSetsInvariant(
-        phi=MLP(input_dim=1, hidden_dim=10, output_dim=10),
-        rho=MLP(input_dim=10, hidden_dim=10, output_dim=1),
-        accumulator=accumulate_sum,
-    )
-
-    config = Config(
-        Paths("./log", "./results/results.csv"),
-        ExperimentConfig(1, 1e-3, 64, 42, "mse", 5e-4),
-        None,
-        Trainset(None, None, None, None, experiment_type, use_multisets),
-        None,
-        Testset(1000, 10, -5, 5, experiment_type, use_multisets),
+        phi=MLP(input_dim=1, hidden_dim=10, output_dim=config.model.laten_dim),
+        rho=MLP(input_dim=config.model.laten_dim, hidden_dim=10, output_dim=1),
+        accumulator=config.model.accumulator,
     )
 
     experiment = Experiment(

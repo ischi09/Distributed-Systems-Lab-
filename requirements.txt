@@ -1,10 +1,8 @@
-pytorch
-torchvision
+numpy
+pandas
 matplotlib
 ipython
 jupyter
-tqdm
-click
-numpy
+pytorch
 tensorboard
-pandas
+tqdm

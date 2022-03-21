@@ -2,6 +2,7 @@
 
 # Log directories
 log/
+outputs/
 
 ## GitHub Python Excludes ##
 

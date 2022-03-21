@@ -10,6 +10,13 @@ def accumulate_sum(x: torch.FloatTensor) -> torch.FloatTensor:
     return x.sum(axis=0)
 
 
+def accumulate_max(x: torch.FloatTensor) -> torch.FloatTensor:
+    return x.max(dim=0).values
+
+
+ACCUMLATORS = {"sum": accumulate_sum, "max": accumulate_max}
+
+
 def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -19,12 +26,12 @@ class DeepSetsInvariant(nn.Module):
         self,
         phi: nn.Module,
         rho: nn.Module,
-        accumulator: Callable[[torch.FloatTensor], torch.FloatTensor],
+        accumulator: str,
     ):
         super().__init__()
         self.phi = phi
         self.rho = rho
-        self.accumulator = accumulator
+        self.accumulator = ACCUMLATORS[accumulator]
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         x = self.phi(x)  # x.shape = (set_size, input_dim)

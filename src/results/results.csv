@@ -1,0 +1,10 @@
+model,n_params,n_samples,max_set_size,min_value,max_value,label,multisets,loss,epochs,lr,weight_decay,avg_test_loss
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,sum,False,mse,5,5e-05,0.005,0.00033704576417676436
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,max,False,mse,5,5e-05,0.005,2.497898410847687
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,cardinality,False,mse,5,5e-05,0.005,0.0010011448583689315
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,mode,True,mse,5,5e-05,0.005,5.521848800844829
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,sum,True,mse,5,5e-05,0.005,0.0001713763629254572
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,max,True,mse,5,5e-05,0.005,4.058276081319899
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,cardinality,True,mse,5,5e-05,0.005,0.00042384294340776305
+deepsets_invariant_mlp_elementmax_mlp,251,1000,10,0,10,max,False,mse,5,5e-05,0.005,2.262398210405081e-06
+deepsets_invariant_mlp_elementmax_mlp,251,1000,10,0,10,max,True,mse,5,5e-05,0.005,1.1292690419395511e-06
