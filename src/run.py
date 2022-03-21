@@ -1,5 +1,7 @@
 import click
+from isort import Config
 import numpy as np
+import hydra
 import torch
 
 from deepsets.experiments import DeepSetExperiment
@@ -7,21 +9,24 @@ from deepsets.experiments import DeepSetExperiment
 
 @click.command()
 @click.option('--random-seed', envvar='SEED', default=42)
-def main(random_seed):
-    np.random.seed(random_seed)
-    torch.manual_seed(random_seed)
-    torch.cuda.manual_seed_all(random_seed)
 
-    experiment_type = 'sum'
-    use_multisets = True
+
+@hydra.main(config_path="conf", config_name="config")
+def main(cfg:Config):
+    np.random.seed(cfg.experiment.random_seed)
+    torch.manual_seed(cfg.experiment.random_seed)
+    torch.cuda.manual_seed_all(cfg.experiment.random_seed)
+
+    experiment_type = cfg.label # TODO Figure out how to access the default value
+    use_multisets = cfg.multisets
     print(
         f"Running experiment of type '{experiment_type}' with {'multisets' if use_multisets else 'sets'}")
 
     experiment = DeepSetExperiment(
         type=experiment_type,
         use_multisets=use_multisets,
-        log_dir='./log',
-        lr=1e-3)
+        log_dir=cfg.paths.log,
+        lr=cfg.experiment.lr)
 
     for i in range(10):
         print(f'Training epoch {i}...')

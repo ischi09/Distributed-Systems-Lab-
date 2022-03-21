@@ -7,9 +7,9 @@ defaults:
   - multisets: False
 
 paths:
-  log: ./runs
+  log: ${hydra:runtime.cwd}/runs
  # data: ./dataset
-  results: ./results/results.csv
+  results: ${hydra:runtime.cwd}/results/results.csv
 
 experiment:
   epochs: 20
