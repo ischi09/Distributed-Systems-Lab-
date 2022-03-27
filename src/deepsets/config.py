@@ -6,6 +6,7 @@ class Paths:
     log: str
     results: str
 
+
 @dataclass
 class Experiment:
     epochs: int
@@ -18,24 +19,27 @@ class Experiment:
 
 @dataclass
 class Model:
-  accumulator: str
-  laten_dim: int
+    type: str
+    data_dim: int
+    laten_dim: int
+    accumulator: str
 
 
 @dataclass
 class Dataset:
-  n_samples: int
-  max_set_size: int
-  min_value: int
-  max_value: int
-  label: str
-  multisets: bool
+    n_samples: int
+    max_set_size: int
+    min_value: int
+    max_value: int
+    label: str
+    multisets: bool
+
 
 @dataclass
 class Config:
-  paths: Paths
-  experiment: Experiment
-  model: Model
-  trainset: Dataset
-  validset: Dataset
-  testset: Dataset
+    paths: Paths
+    experiment: Experiment
+    model: Model
+    trainset: Dataset
+    validset: Dataset
+    testset: Dataset

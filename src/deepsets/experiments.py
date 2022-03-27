@@ -22,7 +22,6 @@ class Experiment:
         self,
         config: Config,
         model: torch.nn.Module,
-        model_name: str,  # TODO: not elegant, maybe experiment name in config better
         train_set: SetDataset,
         valid_set: SetDataset,
         test_set: SetDataset,
@@ -35,7 +34,7 @@ class Experiment:
         if self.use_cuda:
             self.model.cuda()
 
-        self.model_name = model_name
+        self.model_type = f"{config.model.type}_{config.model.accumulator}"
 
         shuffle = True
         self.train_set_loader = DataLoader(
@@ -126,7 +125,7 @@ class Experiment:
         exp_config = self.config.experiment
 
         results = {
-            "model": self.model_name,  # TODO: Generate from model.
+            "model": self.model_type,
             "n_params": count_parameters(self.model),
             "n_samples": testset_config.n_samples,
             "max_set_size": testset_config.max_set_size,
