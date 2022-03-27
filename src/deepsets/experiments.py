@@ -17,6 +17,10 @@ from .networks import count_parameters
 LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
 
 
+def get_data_loader(dataset: SetDataset, batch_size: int, shuffle=True) -> DataLoader:
+    return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
+
+
 class Experiment:
     def __init__(
         self,
@@ -36,24 +40,14 @@ class Experiment:
 
         self.model_type = f"{config.model.type}_{config.model.accumulator}"
 
-        shuffle = True
-        self.train_set_loader = DataLoader(
-            dataset=train_set, batch_size=config.experiment.batch_size, shuffle=shuffle
-        )
-        self.valid_set_loader = DataLoader(
-            dataset=valid_set, batch_size=config.experiment.batch_size, shuffle=shuffle
-        )
-        self.test_set_loader = DataLoader(
-            dataset=test_set, batch_size=config.experiment.batch_size, shuffle=shuffle
-        )
-
-        lr = config.experiment.lr
-        weight_decay = config.experiment.weight_decay
+        self.train_set_loader = get_data_loader(train_set, config.experiment.batch_size)
+        self.valid_set_loader = get_data_loader(valid_set, config.experiment.batch_size)
+        self.test_set_loader = get_data_loader(test_set, config.experiment.batch_size)
 
         self.optimizer = optim.Adam(
             self.model.parameters(),
-            lr=lr,
-            weight_decay=weight_decay,
+            lr=config.experiment.lr,
+            weight_decay=config.experiment.weight_decay,
         )
 
         self.loss_fn = LOSS_FNS[config.experiment.loss]
@@ -63,7 +57,7 @@ class Experiment:
             config.paths.log,
             self.model_type,
             f"{config.trainset.label}-{multisets_id}",
-            f"lr:{lr}-wd:{weight_decay}",
+            f"lr:{config.experiment.lr}-wd:{config.experiment.weight_decay}",
         )
         self.summary_writer = SummaryWriter(log_dir=log_dir)
 
