@@ -58,9 +58,14 @@ class Experiment:
 
         self.loss_fn = LOSS_FNS[config.experiment.loss]
 
-        self.summary_writer = SummaryWriter(
-            log_dir=f"{config.paths.log}/exp-lr:{lr}-wd:{weight_decay}"
+        multisets_id = "multisets" if config.trainset.multisets else "sets"
+        log_dir = os.path.join(
+            config.paths.log,
+            self.model_type,
+            f"{config.trainset.label}-{multisets_id}",
+            f"lr:{lr}-wd:{weight_decay}",
         )
+        self.summary_writer = SummaryWriter(log_dir=log_dir)
 
         self.results = pd.DataFrame(
             columns=[
