@@ -4,15 +4,15 @@ paths:
   results: ${hydra:runtime.cwd}/results/results.csv
 
 experiment:
-  epochs: 5
-  lr: 5e-5
-  batch_size: 128
+  epochs: 20
+  lr: 0.001
+  batch_size: 64
   random_seed: 99
   loss: mse
   weight_decay: 5e-3
 
 model:
-  accumulator: max
+  accumulator: sum
   laten_dim: 10
 
 trainset:
@@ -20,7 +20,7 @@ trainset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: max # Independent of accumulator
+  label: sum # Independent of accumulator
   multisets: True 
 
 validset:
@@ -28,7 +28,7 @@ validset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: max # Independent of accumulator
+  label: sum # Independent of accumulator
   multisets: True 
 
 testset:
@@ -36,6 +36,6 @@ testset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: max # Independent of accumulator
+  label: sum # Independent of accumulator
   multisets: True 
 #   n_samples: 100

@@ -1,8 +1,10 @@
 import os
+import time
 import pandas as pd
 
 import torch
 from torch import optim
+from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
@@ -35,9 +37,16 @@ class Experiment:
 
         self.model_name = model_name
 
-        self.train_set = train_set
-        self.valid_set = valid_set
-        self.test_set = test_set
+        shuffle = True
+        self.train_set_loader = DataLoader(
+            dataset=train_set, batch_size=config.experiment.batch_size, shuffle=shuffle
+        )
+        self.valid_set_loader = DataLoader(
+            dataset=valid_set, batch_size=config.experiment.batch_size, shuffle=shuffle
+        )
+        self.test_set_loader = DataLoader(
+            dataset=test_set, batch_size=config.experiment.batch_size, shuffle=shuffle
+        )
 
         lr = config.experiment.lr
         weight_decay = config.experiment.weight_decay
@@ -78,8 +87,12 @@ class Experiment:
         print(f"    loss: {self.config.experiment.loss}")
         print(f"    multisets: {'yes' if self.config.trainset.multisets else 'no'}")
 
+        start_time = time.time()
         self.train()
         self.test()
+        end_time = time.time()
+
+        print(f"\nExperiment runtime: {end_time - start_time:.3f}s")
 
         print("Saving results...")
         self.results.to_csv(
@@ -88,6 +101,7 @@ class Experiment:
             header=not os.path.isfile(self.config.paths.results),
             index=False,
         )
+        print("Done!")
 
     def train(self) -> None:
         for _ in range(self.config.experiment.epochs):
@@ -98,14 +112,14 @@ class Experiment:
             print(f"Average train loss: {avg_train_loss}")
 
             print("Validating model...")
-            avg_valid_loss = self.__eval_model(self.valid_set, "valid_loss")
+            avg_valid_loss = self.__eval_model(self.valid_set_loader, "valid_loss")
             print(f"Average validation loss: {avg_valid_loss}")
 
             self.epoch_counter += 1
 
     def test(self) -> None:
         print("\nTesting model...")
-        avg_test_loss = self.__eval_model(self.test_set, "test_loss")
+        avg_test_loss = self.__eval_model(self.test_set_loader, "test_loss")
         print(f"Average test loss: {avg_test_loss}")
 
         testset_config = self.config.testset
@@ -130,27 +144,31 @@ class Experiment:
 
     def __train_model(self, loss_id: str) -> None:
         self.model.train()
-        train_set_size = len(self.train_set)
+        n_batches = len(self.train_set_loader)
         total_train_loss = 0.0
 
-        for i in tqdm(range(train_set_size)):
-            x, label = self.train_set[i]
-            train_loss = self.__train_step(x, label)
+        batch_counter = 0
+        for batch in tqdm(self.train_set_loader):
+            x, label, mask = batch
+            train_loss = self.__train_step(x, label, mask)
             total_train_loss += train_loss
 
-            step_counter = train_set_size * self.epoch_counter + i
+            step_counter = n_batches * self.epoch_counter + batch_counter
             self.summary_writer.add_scalar(loss_id, train_loss, step_counter)
+            batch_counter += 1
 
-        return total_train_loss / train_set_size
+        return total_train_loss / n_batches
 
-    def __train_step(self, x: torch.FloatTensor, label: torch.FloatTensor) -> float:
+    def __train_step(
+        self, x: torch.FloatTensor, label: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> float:
         if self.use_cuda:
-            x, label = x.cuda(), label.cuda()
+            x, label, mask = x.cuda(), label.cuda(), mask.cuda()
 
         self.optimizer.zero_grad()
-        pred = self.model(x)
+        pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
-        pred = torch.squeeze(pred, dim=0)
+        pred = torch.squeeze(pred, dim=1)
         the_loss = self.loss_fn(pred, label)
 
         the_loss.backward()
@@ -165,29 +183,33 @@ class Experiment:
 
         return the_loss_float
 
-    def __eval_model(self, dataset: SetDataset, loss_id: str) -> float:
+    def __eval_model(self, data_loader: DataLoader, loss_id: str) -> float:
         self.model.eval()
-        dataset_size = len(dataset)
+        n_batches = len(data_loader)
         total_eval_loss = 0.0
 
         with torch.no_grad():
-            for i in tqdm(range(dataset_size)):
-                x, label = dataset[i]
-                eval_loss = self.__eval_step(x, label)
+            batch_counter = 0
+            for batch in tqdm(data_loader):
+                x, label, mask = batch
+                eval_loss = self.__eval_step(x, label, mask)
                 total_eval_loss += eval_loss
 
-                step_counter = dataset_size * self.epoch_counter + i
+                step_counter = n_batches * self.epoch_counter + batch_counter
                 self.summary_writer.add_scalar(loss_id, eval_loss, step_counter)
+                batch_counter += 1
 
-        return total_eval_loss / dataset_size
+        return total_eval_loss / n_batches
 
-    def __eval_step(self, x: torch.FloatTensor, label: torch.FloatTensor) -> float:
+    def __eval_step(
+        self, x: torch.FloatTensor, label: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> float:
         if self.use_cuda:
-            x, label = x.cuda(), label.cuda()
+            x, label = x.cuda(), label.cuda(), mask.cuda()
 
-        pred = self.model(x)
+        pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
-        pred = torch.squeeze(pred, dim=0)
+        pred = torch.squeeze(pred, dim=1)
         the_loss = self.loss_fn(pred, label)
 
         the_loss_tensor = the_loss.data

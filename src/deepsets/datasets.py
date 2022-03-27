@@ -1,5 +1,6 @@
-from typing import Callable, Any
+from typing import Callable, Any, Tuple
 import random
+
 from .config import Config
 import hydra
 import numpy as np
@@ -75,24 +76,43 @@ class SetDataset(Dataset):
         generate_multisets=False,
     ):
         self.n_samples = n_samples
-        self.label_generator = label_generator
-        self.items = []
+        self.sets = []
 
         for _ in range(n_samples):
+            # Generate the actual random set.
             values = np.arange(min_value, max_value)
             rand_set_size = random.randint(1, max_set_size)
+            rand_set_shape = (rand_set_size, 1)
             rand_set = np.random.choice(
-                values, (rand_set_size, 1), replace=generate_multisets
+                values, rand_set_shape, replace=generate_multisets
             )
-            item = torch.tensor(rand_set, dtype=torch.float)
-            self.items.append(item)
 
-        self.labelled_items = [
-            (item, self.label_generator(item)) for item in self.items
-        ]
+            # Generate the padding to the maximum size.
+            padding_shape = (max_set_size - rand_set_size, 1)
+            padding = np.zeros(padding_shape, dtype=np.int)
 
-    def __len__(self):
+            # Generate padded random set and padding mask.
+            padded_rand_set = np.vstack((rand_set, padding))
+            mask = np.vstack(
+                (
+                    np.ones(rand_set_shape, dtype=np.int),
+                    np.zeros(padding_shape, dtype=np.int),
+                )
+            )
+
+            def to_tensor(x: np.ndarray) -> torch.FloatTensor:
+                return torch.tensor(x, dtype=torch.float)
+
+            rand_set = to_tensor(rand_set)
+            padded_rand_set = to_tensor(padded_rand_set)
+            mask = to_tensor(mask)
+
+            self.sets.append((padded_rand_set, label_generator(rand_set), mask))
+
+    def __len__(self) -> int:
         return self.n_samples
 
-    def __getitem__(self, item):
-        return self.labelled_items[item]
+    def __getitem__(
+        self, idx
+    ) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+        return self.sets[idx]

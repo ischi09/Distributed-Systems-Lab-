@@ -7,11 +7,11 @@ import torch.nn as nn
 
 
 def accumulate_sum(x: torch.FloatTensor) -> torch.FloatTensor:
-    return x.sum(axis=0)
+    return x.sum(axis=1)
 
 
 def accumulate_max(x: torch.FloatTensor) -> torch.FloatTensor:
-    return x.max(dim=0).values
+    return x.max(dim=1).values
 
 
 ACCUMLATORS = {"sum": accumulate_sum, "max": accumulate_max}
@@ -33,8 +33,11 @@ class DeepSetsInvariant(nn.Module):
         self.rho = rho
         self.accumulator = ACCUMLATORS[accumulator]
 
-    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
-        x = self.phi(x)  # x.shape = (set_size, input_dim)
+    def forward(
+        self, x: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        x = self.phi(x)  # x.shape = (max_set_size, input_dim)
+        x = x * mask
         x = self.accumulator(x)
         return self.rho(x)
 
