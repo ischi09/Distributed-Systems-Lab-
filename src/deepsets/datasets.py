@@ -23,6 +23,48 @@ def get_sum(x: torch.Tensor) -> torch.Tensor:
     return x.sum()
 
 
+def get_largest_length_seq(x: torch.Tensor) -> torch.Tensor:
+    sorted, _ = torch.sort(x)
+    max_length = 0
+    cur_length = 0
+    last_val = None
+    for val in sorted:
+        if last_val is None:
+            last_val = val
+            continue
+
+        if last_val + 1 == val:
+            cur_length += 1
+        else:
+            max_length = max(max_length, cur_length)
+            cur_length = 0
+
+    return torch.Tensor(max_length)
+
+
+def get_largest_contigous_sum(x: torch.Tensor) -> torch.Tensor:
+    sorted, _ = torch.sort(x, descending=True)
+    total = 0
+
+    for val in sorted:
+        if val < 0:
+            break
+
+        total += val
+
+    return torch.Tensor(total)
+
+
+def get_largest_n_pair(x: torch.Tensor, n: int) -> torch.Tensor:
+    sorted, _ = torch.sort(x, descending=True)
+    total = 0
+
+    for i in range(n):
+        total += x[i]
+
+    return torch.Tensor(total)
+
+
 LABEL_GENERATORS = {
     "sum": get_sum,
     "cardinality": get_cardinality,
