@@ -5,6 +5,7 @@ import hydra
 import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
+from functools import partial
 
 
 def get_max(x: torch.Tensor) -> torch.Tensor:
@@ -23,12 +24,16 @@ def get_sum(x: torch.Tensor) -> torch.Tensor:
     return x.sum()
 
 
-def get_largest_length_seq(x: torch.Tensor) -> torch.Tensor:
-    sorted, _ = torch.sort(x)
+def get_mean(x: torch.Tensor) -> torch.Tensor:
+    return x.mean()
+
+
+def get_largest_seq_length(x: torch.Tensor) -> torch.Tensor:
+    sorted_, _ = torch.sort(x)
     max_length = 0
     cur_length = 0
     last_val = None
-    for val in sorted:
+    for val in sorted_:
         if last_val is None:
             last_val = val
             continue
@@ -42,11 +47,11 @@ def get_largest_length_seq(x: torch.Tensor) -> torch.Tensor:
     return torch.Tensor(max_length)
 
 
-def get_largest_contigous_sum(x: torch.Tensor) -> torch.Tensor:
-    sorted, _ = torch.sort(x, descending=True)
+def get_largest_contiguous_sum(x: torch.Tensor) -> torch.Tensor:
+    sorted_, _ = torch.sort(x, descending=True)
     total = 0
 
-    for val in sorted:
+    for val in sorted_:
         if val < 0:
             break
 
@@ -55,12 +60,12 @@ def get_largest_contigous_sum(x: torch.Tensor) -> torch.Tensor:
     return torch.Tensor(total)
 
 
-def get_largest_n_pair(x: torch.Tensor, n: int) -> torch.Tensor:
-    sorted, _ = torch.sort(x, descending=True)
+def get_largest_n_tuple_sum(x: torch.Tensor, n: int) -> torch.Tensor:
+    sorted_, _ = torch.sort(x, descending=True)
     total = 0
 
     for i in range(n):
-        total += x[i]
+        total += sorted_[i]
 
     return torch.Tensor(total)
 
@@ -70,6 +75,11 @@ LABEL_GENERATORS = {
     "cardinality": get_cardinality,
     "mode": get_mode,
     "max": get_max,
+    "mean": get_mean,
+    "largest_seq_length": get_largest_seq_length,
+    "largest_contiguous_sum": get_largest_contiguous_sum,
+    "largest_pair_sum": partial(get_largest_n_tuple_sum, n=2),
+    "largest_triple_sum": partial(get_largest_n_tuple_sum, n=3),
 }
 
 

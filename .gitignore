@@ -4,6 +4,9 @@
 log/
 outputs/
 
+# Sweep directory
+multirun/
+
 ## GitHub Python Excludes ##
 
 # Byte-compiled / optimized / DLL files

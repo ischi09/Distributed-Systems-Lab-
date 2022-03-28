@@ -4,7 +4,7 @@ paths:
   results: ${hydra:runtime.cwd}/results/results.csv
 
 experiment:
-  epochs: 5
+  epochs: 1
   lr: 5e-5
   batch_size: 128
   random_seed: 99
@@ -16,7 +16,7 @@ model:
   laten_dim: 10
 
 trainset:
-  n_samples: 10000
+  n_samples: 10
   max_set_size: 10
   min_value: 0
   max_value: 10
@@ -24,7 +24,7 @@ trainset:
   multisets: True 
 
 validset:
-  n_samples: 1000
+  n_samples: 10
   max_set_size: 10
   min_value: 0
   max_value: 10
@@ -32,7 +32,7 @@ validset:
   multisets: True 
 
 testset:
-  n_samples: 1000
+  n_samples: 10
   max_set_size: 10
   min_value: 0
   max_value: 10
