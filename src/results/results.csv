@@ -8,3 +8,5 @@ deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,max,True,mse,5,5e-05,0.005,4.058
 deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,cardinality,True,mse,5,5e-05,0.005,0.00042384294340776305
 deepsets_invariant_mlp_elementmax_mlp,251,1000,10,0,10,max,False,mse,5,5e-05,0.005,2.262398210405081e-06
 deepsets_invariant_mlp_elementmax_mlp,251,1000,10,0,10,max,True,mse,5,5e-05,0.005,1.1292690419395511e-06
+deepsets_invariant_mlp_sum_mlp,251,1000,10,0,10,max,True,mse,5,5e-05,0.005,0.05730958250520007
+deepsets_invariant_mlp_sum_mlp,251,100,10,0,10,max,True,mse,5,5e-05,0.005,0.02874717439750384

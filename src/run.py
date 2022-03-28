@@ -1,7 +1,7 @@
 import numpy as np
 import hydra
 import torch
-
+import sys
 from deepsets.config import Config
 from deepsets.datasets import generate_datasets
 from deepsets.networks import DeepSetsInvariant, MLP
