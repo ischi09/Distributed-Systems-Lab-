@@ -4,7 +4,7 @@ import torch
 import sys
 from deepsets.config import Config
 from deepsets.datasets import generate_datasets
-from deepsets.networks import DeepSetsInvariant, MLP
+from deepsets.networks import generate_model
 from deepsets.experiments import Experiment
 
 
@@ -20,17 +20,11 @@ def main(config: Config):
 
     train_set, valid_set, test_set = generate_datasets(config)
 
-    # Set up model.
-    model = DeepSetsInvariant(
-        phi=MLP(input_dim=1, hidden_dim=10, output_dim=config.model.laten_dim),
-        rho=MLP(input_dim=config.model.laten_dim, hidden_dim=10, output_dim=1),
-        accumulator=config.model.accumulator,
-    )
+    model = generate_model(config.model)
 
     experiment = Experiment(
         config=config,
         model=model,
-        model_name="deepsets_invariant_mlp_sum_mlp",
         train_set=train_set,
         valid_set=valid_set,
         test_set=test_set,
