@@ -166,7 +166,7 @@ class Experiment:
         self.optimizer.zero_grad()
         pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
-        pred = torch.squeeze(pred, dim=1)
+        pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
         the_loss.backward()

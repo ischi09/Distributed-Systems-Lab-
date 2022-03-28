@@ -29,10 +29,16 @@ def get_mean(x: torch.Tensor) -> torch.Tensor:
     return x.mean()
 
 
-def get_largest_seq_length(x: torch.Tensor) -> torch.Tensor:
+def get_longest_seq_length(x: torch.Tensor) -> torch.Tensor:
+    """
+    Returns length of longest sequence of consecutive numbers.
+
+    Example:
+        [2, 4, 1, 5, 7] -> 2 (because 1,2 or 4,5 are consecutive)
+    """
     sorted_, _ = torch.sort(x)
-    max_length = 0
-    cur_length = 0
+    max_length = 1
+    cur_length = 1
     last_val = None
     for val in sorted_:
         if last_val is None:
@@ -43,32 +49,29 @@ def get_largest_seq_length(x: torch.Tensor) -> torch.Tensor:
             cur_length += 1
         else:
             max_length = max(max_length, cur_length)
-            cur_length = 0
+            cur_length = 1
 
-    return torch.Tensor(max_length)
+        last_val = val
+
+    return torch.tensor(max_length, dtype=torch.float)
 
 
 def get_largest_contiguous_sum(x: torch.Tensor) -> torch.Tensor:
     sorted_, _ = torch.sort(x, descending=True)
-    total = 0
+    total = 0.0
 
     for val in sorted_:
         if val < 0:
             break
 
-        total += val
+        total += float(val)
 
-    return torch.Tensor(total)
+    return torch.tensor(total, dtype=torch.float)
 
 
 def get_largest_n_tuple_sum(x: torch.Tensor, n: int) -> torch.Tensor:
     sorted_, _ = torch.sort(x, descending=True)
-    total = 0
-
-    for i in range(n):
-        total += sorted_[i]
-
-    return torch.Tensor(total)
+    return sorted_[:n].sum()
 
 
 LABEL_GENERATORS = {
@@ -77,7 +80,7 @@ LABEL_GENERATORS = {
     "mode": get_mode,
     "max": get_max,
     "mean": get_mean,
-    "largest_seq_length": get_largest_seq_length,
+    "longest_seq_length": get_longest_seq_length,
     "largest_contiguous_sum": get_largest_contiguous_sum,
     "largest_pair_sum": partial(get_largest_n_tuple_sum, n=2),
     "largest_triple_sum": partial(get_largest_n_tuple_sum, n=3),

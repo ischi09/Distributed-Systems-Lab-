@@ -18,7 +18,7 @@ model:
   accumulator: sum
 
 trainset:
-  n_samples: 10
+  n_samples: 10000
   max_set_size: 10
   min_value: 0
   max_value: 10
@@ -26,7 +26,7 @@ trainset:
   multisets: True
 
 validset:
-  n_samples: 10
+  n_samples: 1000
   max_set_size: 10
   min_value: 0
   max_value: 10
@@ -34,7 +34,7 @@ validset:
   multisets: True
 
 testset:
-  n_samples: 10
+  n_samples: 1000
   max_set_size: 10
   min_value: 0
   max_value: 10
