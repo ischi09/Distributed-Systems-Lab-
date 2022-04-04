@@ -25,3 +25,6 @@ deepsets_mlp_sum,251,1000,10,0,10,longest_seq_length,True,mse,20,0.001,0.005,0.2
 deepsets_mlp_sum,251,1000,10,0,10,largest_contiguous_sum,True,mse,20,0.001,0.005,0.0003416206145629985
 deepsets_mlp_sum,251,1000,10,0,10,largest_pair_sum,True,mse,20,0.001,0.005,10.209914118051529
 deepsets_mlp_sum,251,1000,10,0,10,largest_triple_sum,True,mse,20,0.001,0.005,11.418177157640457
+small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,5,0.001,0.005,24.204701252776015
+small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,5,0.001,0.005,0.008443626067601144
+small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,20,0.001,0.005,0.0697807552665472

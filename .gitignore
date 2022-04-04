@@ -7,6 +7,9 @@ outputs/
 # Sweep directory
 multirun/
 
+# External repository code
+set_transformer
+
 ## GitHub Python Excludes ##
 
 # Byte-compiled / optimized / DLL files

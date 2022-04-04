@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from .config import Model as ModelConfig
+from .set_transformer.modules import SAB, PMA
 
 
 def accumulate_sum(x: torch.FloatTensor, mask: torch.FloatTensor) -> torch.FloatTensor:
@@ -62,6 +63,8 @@ def generate_model(config: ModelConfig) -> nn.Module:
             ),
             accumulator=ACCUMLATORS[config.accumulator],
         )
+    elif config.type == "small_set_transformer":
+        model = SmallSetTransformer()
     return model
 
 
@@ -100,3 +103,26 @@ class MLP(nn.Module):
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         return self.layers(x)
+
+
+class SmallSetTransformer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.enc = nn.Sequential(
+            SAB(dim_in=1, dim_out=64, num_heads=4),
+            SAB(dim_in=64, dim_out=64, num_heads=4),
+        )
+        self.dec = nn.Sequential(
+            PMA(dim=64, num_heads=4, num_seeds=1),
+            nn.Linear(in_features=64, out_features=1),
+        )
+
+    def forward(self, x, mask):
+        # print(mask.shape)
+        # print(mask.sum(dim=1))
+        # assert False
+        # set_length = int(mask.sum().int())
+        # x = x[:, :set_length, :]
+        x = self.enc(x)
+        x = self.dec(x)
+        return x.squeeze(-1)
