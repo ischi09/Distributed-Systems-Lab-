@@ -132,7 +132,9 @@ class SetDataset(Dataset):
     ):
         self.n_samples = n_samples
         self.sets = []
+        unpadded = []
 
+        # TODO need to figure out if this inhibts the mean, meadian, mode, calculations
         for _ in range(n_samples):
             # Generate the actual random set.
             values = np.arange(min_value, max_value)
@@ -163,6 +165,22 @@ class SetDataset(Dataset):
             mask = to_tensor(mask)
 
             self.sets.append((padded_rand_set, label_generator(rand_set), mask))
+            unpadded.append(rand_set)
+
+        # After processing for later evaluation
+        self.mean_list = [row.mean() for row in unpadded]
+        self.mode_list = [get_mode(row) for row in unpadded]
+        self.median_list = [row.median() for row in unpadded]
+
+    def get_mean(self):
+        return self.mean_list, np.mean(self.mean_list)
+
+    # Cannot retrieve the overall mode/median from this. But we probs do not need them?
+    def get_mode(self):
+        return self.mode_list
+
+    def get_median(self):
+        return self.median_list
 
     def __len__(self) -> int:
         return self.n_samples
