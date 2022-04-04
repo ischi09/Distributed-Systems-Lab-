@@ -102,7 +102,7 @@ class Experiment:
         print("Done!")
 
     def train(self) -> None:
-        for _ in range(self.config.experiment.epochs):
+        for _ in range(self.config.experiment.max_epochs):
             print(f"\n*** Epoch {self.epoch_counter} ***")
 
             print("Training model...")
@@ -133,7 +133,7 @@ class Experiment:
             "label": testset_config.label,
             "multisets": testset_config.multisets,
             "loss": exp_config.loss,
-            "epochs": exp_config.epochs,
+            "epochs": exp_config.max_epochs,
             "lr": exp_config.lr,
             "weight_decay": exp_config.weight_decay,
             "avg_test_loss": avg_test_loss,

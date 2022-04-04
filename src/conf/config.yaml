@@ -4,7 +4,9 @@ paths:
   results: ${hydra:runtime.cwd}/results/results.csv
 
 experiment:
-  epochs: 20
+  max_epochs: 5
+  early_stopping_patience: 5
+  early_stopping_threshold: 0.0001
   lr: 0.001
   batch_size: 64
   random_seed: 99

@@ -9,7 +9,9 @@ class Paths:
 
 @dataclass
 class Experiment:
-    epochs: int
+    max_epochs: int
+    early_stopping_patience: int
+    early_stopping_threshold: float
     lr: float
     batch_size: int
     random_seed: int
