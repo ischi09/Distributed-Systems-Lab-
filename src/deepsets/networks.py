@@ -51,14 +51,10 @@ def generate_model(config: ModelConfig) -> nn.Module:
     if config.type == "deepsets_mlp":
         model = DeepSetsInvariant(
             phi=MLP(
-                input_dim=config.data_dim,
-                hidden_dim=10,
-                output_dim=config.laten_dim,
+                input_dim=config.data_dim, hidden_dim=10, output_dim=config.laten_dim,
             ),
             rho=MLP(
-                input_dim=config.laten_dim,
-                hidden_dim=10,
-                output_dim=config.data_dim,
+                input_dim=config.laten_dim, hidden_dim=10, output_dim=config.data_dim,
             ),
             accumulator=ACCUMLATORS[config.accumulator],
         )
@@ -85,6 +81,43 @@ class DeepSetsInvariant(nn.Module):
         x = self.phi(x)  # x.shape = (batch_size, max_set_size, input_dim)
         x = self.accumulator(x, mask)
         return self.rho(x)
+
+
+class pna(nn.Module):
+    def __init__(self, mlp: nn.Module, unpadded: torch.FloatTensor):
+        super().__init__()
+        self.mlp = mlp
+        self.unpadded = unpadded
+
+    def scale_amplification(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        delta = torch.sum(self.unpadded) / torch.size(self.unpadded, dim=1) + 1
+        scale = torch.log(self.unpadded + 1) / delta  # TODO is this right??
+        return torch.mul(x, scale)
+
+    def scale_attenuation(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        delta = torch.sum(self.unpadded) / torch.size(self.unpadded, dim=1) + 1
+        scale = delta / torch.log(self.unpadded + 1)  # TODO is this right??
+        return torch.mul(x, scale)
+
+    def forward(
+        self, x: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        # Aggregration
+        mean = accumulate_mean(x, mask)
+        agg_max = accumulate_max(x, mask)
+        agg_min = accumulate_min(x, mask)
+        std = accumulate_std(x, mask)
+
+        aggr_concat = torch.concat([mean, agg_max, agg_min, std])
+
+        # Scaling
+        identity = aggr_concat
+        amplification = self.scale_amplification(aggr_concat)
+        attenuation = self.scale_attenuation(aggr_concat)
+
+        scale_concat = torch.concat([identity, amplification, attenuation])
+
+        return self.mlp(scale_concat)
 
 
 class MLP(nn.Module):
