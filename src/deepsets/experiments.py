@@ -102,6 +102,8 @@ class Experiment:
         print("Done!")
 
     def train(self) -> None:
+        best_valid_loss = float("inf")
+        n_no_improvement_epochs = 0
         for _ in range(self.config.experiment.max_epochs):
             print(f"\n*** Epoch {self.epoch_counter} ***")
 
@@ -112,6 +114,22 @@ class Experiment:
             print("Validating model...")
             avg_valid_loss = self.__eval_model(self.valid_set_loader, "valid_loss")
             print(f"Average validation loss: {avg_valid_loss}")
+
+            if (
+                avg_valid_loss - best_valid_loss
+                < self.config.experiment.early_stopping_threshold
+            ):
+                print("Validation loss improved!")
+                best_valid_loss = avg_valid_loss
+                n_no_improvement_epochs = 0
+            else:
+                n_no_improvement_epochs += 1
+
+            if (
+                n_no_improvement_epochs
+                >= self.config.experiment.early_stopping_patience
+            ):
+                break
 
             self.epoch_counter += 1
 
@@ -133,7 +151,7 @@ class Experiment:
             "label": testset_config.label,
             "multisets": testset_config.multisets,
             "loss": exp_config.loss,
-            "epochs": exp_config.max_epochs,
+            "epochs": self.epoch_counter,
             "lr": exp_config.lr,
             "weight_decay": exp_config.weight_decay,
             "avg_test_loss": avg_test_loss,
