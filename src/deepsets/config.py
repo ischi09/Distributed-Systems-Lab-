@@ -4,6 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class Paths:
     log: str
+    models: str
     results: str
 
 

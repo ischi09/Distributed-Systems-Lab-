@@ -7,6 +7,9 @@ outputs/
 # Sweep directory
 multirun/
 
+# macOS files
+.DS_Store
+
 ## GitHub Python Excludes ##
 
 # Byte-compiled / optimized / DLL files

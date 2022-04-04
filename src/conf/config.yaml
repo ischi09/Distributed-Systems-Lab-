@@ -1,6 +1,7 @@
 paths:
   log: ${hydra:runtime.cwd}/log
  # data: ./dataset
+  models: ${hydra:runtime.cwd}/models
   results: ${hydra:runtime.cwd}/results/results.csv
 
 experiment:

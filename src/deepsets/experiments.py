@@ -1,3 +1,4 @@
+from genericpath import exists
 import os
 import time
 import pandas as pd
@@ -53,13 +54,17 @@ class Experiment:
         self.loss_fn = LOSS_FNS[config.experiment.loss]
 
         multisets_id = "multisets" if config.trainset.multisets else "sets"
-        log_dir = os.path.join(
-            config.paths.log,
+        model_subdir = os.path.join(
             self.model_type,
             f"{config.trainset.label}-{multisets_id}",
             f"lr:{config.experiment.lr}-wd:{config.experiment.weight_decay}",
         )
+        log_dir = os.path.join(config.paths.log, model_subdir)
         self.summary_writer = SummaryWriter(log_dir=log_dir)
+
+        model_dir = os.path.join(config.paths.models, model_subdir)
+        os.makedirs(model_dir, exist_ok=True)
+        self.best_model_filename = os.path.join(model_dir, "best_model.pth")
 
         self.results = pd.DataFrame(
             columns=[
@@ -120,6 +125,7 @@ class Experiment:
                 < self.config.experiment.early_stopping_threshold
             ):
                 print("Validation loss improved!")
+                torch.save(self.model.state_dict(), self.best_model_filename)
                 best_valid_loss = avg_valid_loss
                 n_no_improvement_epochs = 0
             else:
@@ -135,6 +141,7 @@ class Experiment:
 
     def test(self) -> None:
         print("\nTesting model...")
+        self.model.load_state_dict(torch.load(self.best_model_filename))
         avg_test_loss = self.__eval_model(self.test_set_loader, "test_loss")
         print(f"Average test loss: {avg_test_loss}")
 
