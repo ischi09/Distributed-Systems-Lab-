@@ -10,6 +10,9 @@ multirun/
 # macOS files
 .DS_Store
 
+# External repository code
+set_transformer
+
 ## GitHub Python Excludes ##
 
 # Byte-compiled / optimized / DLL files

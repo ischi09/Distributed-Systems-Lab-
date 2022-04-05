@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from .config import Model as ModelConfig
+from .set_transformer.modules import SAB, PMA
 
 
 def accumulate_sum(
@@ -83,6 +84,8 @@ def generate_model(config: ModelConfig, delta: float) -> nn.Module:
             hidden_dim=10,
             output_dim=config.data_dim,
         )
+    elif config.type == "small_set_transformer":
+        model = SmallSetTransformer()
     return model
 
 
@@ -178,3 +181,21 @@ class SortedMLP(nn.Module):
         x, _ = torch.sort(x, dim=1)
         x = x.squeeze(dim=-1)
         return self.layers(x)
+
+
+class SmallSetTransformer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.enc = nn.Sequential(
+            SAB(dim_in=1, dim_out=64, num_heads=4),
+            SAB(dim_in=64, dim_out=64, num_heads=4),
+        )
+        self.dec = nn.Sequential(
+            PMA(dim=64, num_heads=4, num_seeds=1),
+            nn.Linear(in_features=64, out_features=1),
+        )
+
+    def forward(self, x, mask):
+        x = self.enc(x)
+        x = self.dec(x)
+        return x.squeeze(-1)
