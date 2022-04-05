@@ -48,3 +48,5 @@ small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,5,0.001,0.005,0.008443
 small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,20,0.001,0.005,0.0697807552665472
 small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,17,0.001,0.005,0.0005108640101389028
 deepsets_mlp_sum,251,1000,10,0,10,longest_seq_length,True,mse,20,0.001,0.005,0.20263645455241203
+small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,17,0.001,0.005,0.001950117621163372
+small_set_transformer_sum,37953,1000,10,0,10,sum,True,mse,17,0.001,0.005,0.001950117621163372
