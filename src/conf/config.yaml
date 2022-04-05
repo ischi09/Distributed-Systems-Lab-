@@ -24,7 +24,7 @@ trainset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: longest_seq_length # Independent of accumulator
+  label: sum # Independent of accumulator
   multisets: True
 
 validset:
@@ -32,7 +32,7 @@ validset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: longest_seq_length # Independent of accumulator
+  label: sum # Independent of accumulator
   multisets: True
 
 testset:
@@ -40,5 +40,5 @@ testset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: longest_seq_length # Independent of accumulator
+  label: sum # Independent of accumulator
   multisets: True
