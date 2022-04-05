@@ -7,7 +7,6 @@ paths:
 experiment:
   max_epochs: 200
   early_stopping_patience: 5
-  early_stopping_threshold: 0.0001
   lr: 0.001
   batch_size: 64
   random_seed: 99

@@ -120,10 +120,7 @@ class Experiment:
             avg_valid_loss = self.__eval_model(self.valid_set_loader, "valid_loss")
             print(f"Average validation loss: {avg_valid_loss}")
 
-            if (
-                avg_valid_loss - best_valid_loss
-                < self.config.experiment.early_stopping_threshold
-            ):
+            if avg_valid_loss < best_valid_loss:
                 print("Validation loss improved!")
                 torch.save(self.model.state_dict(), self.best_model_filename)
                 best_valid_loss = avg_valid_loss
