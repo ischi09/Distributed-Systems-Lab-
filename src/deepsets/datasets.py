@@ -45,7 +45,7 @@ def get_longest_seq_length(x: torch.Tensor) -> torch.Tensor:
             last_val = val
             continue
 
-        if last_val + 1 == val:
+        if last_val + 1 == val or last_val == val:
             cur_length += 1
         else:
             max_length = max(max_length, cur_length)
@@ -120,6 +120,18 @@ def generate_datasets(cfg: Config):
     return train_set, valid_set, test_set
 
 
+def get_random_set(
+    min_value: int, max_value: int, max_set_size: int, generate_multisets: bool
+) -> np.ndarray:
+    values = np.arange(min_value, max_value)
+    rand_set_size = random.randint(1, max_set_size)
+    rand_set_shape = (rand_set_size, 1)
+    rand_set = np.random.choice(
+        values, rand_set_shape, replace=generate_multisets
+    )
+    return rand_set
+
+
 class SetDataset(Dataset):
     def __init__(
         self,
@@ -135,12 +147,10 @@ class SetDataset(Dataset):
 
         for _ in range(n_samples):
             # Generate the actual random set.
-            values = np.arange(min_value, max_value)
-            rand_set_size = random.randint(1, max_set_size)
-            rand_set_shape = (rand_set_size, 1)
-            rand_set = np.random.choice(
-                values, rand_set_shape, replace=generate_multisets
+            rand_set = get_random_set(
+                min_value, max_value, max_set_size, generate_multisets
             )
+            rand_set_size = rand_set.shape[0]
 
             # Generate the padding to the maximum size.
             padding_shape = (max_set_size - rand_set_size, 1)
@@ -150,7 +160,7 @@ class SetDataset(Dataset):
             padded_rand_set = np.vstack((rand_set, padding))
             mask = np.vstack(
                 (
-                    np.ones(rand_set_shape, dtype=np.int),
+                    np.ones(rand_set.shape, dtype=np.int),
                     np.zeros(padding_shape, dtype=np.int),
                 )
             )

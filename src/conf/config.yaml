@@ -24,21 +24,21 @@ trainset:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: sum # Independent of accumulator
-  multisets: False
+  label: longest_seq_length # Independent of accumulator
+  multisets: True 
 
 validset:
   n_samples: 1000
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: sum # Independent of accumulator
-  multisets: False
+  label: longest_seq_length # Independent of accumulator
+  multisets: True 
 
 testset:
   n_samples: 1000
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: sum # Independent of accumulator
-  multisets: False
+  label: longest_seq_length # Independent of accumulator
+  multisets: True 
