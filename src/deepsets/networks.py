@@ -74,11 +74,7 @@ def generate_model(config: ModelConfig, delta: float) -> nn.Module:
         )
     elif config.type == "pna":
         model = PNA(
-            mlp=MLP(
-                input_dim=config.data_dim,
-                hidden_dim=10,
-                output_dim=config.data_dim,
-            ),
+            mlp=MLP(input_dim=12, hidden_dim=10, output_dim=config.data_dim),
             delta=delta,
         )
     return model
@@ -133,15 +129,14 @@ class PNA(nn.Module):
         agg_min = accumulate_min(x, mask)
         std = accumulate_std(x, mask)
 
-        aggr_concat = torch.concat([mean, agg_max, agg_min, std])
+        aggr_concat = torch.cat((mean, agg_max, agg_min, std), dim=1)
 
         # Scaling
         identity = aggr_concat
         amplification = self.scale_amplification(aggr_concat, mask)
         attenuation = self.scale_attenuation(aggr_concat, mask)
 
-        scale_concat = torch.concat([identity, amplification, attenuation])
-
+        scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
         return self.mlp(scale_concat)
 
 

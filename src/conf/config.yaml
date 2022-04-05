@@ -12,7 +12,7 @@ experiment:
   weight_decay: 5e-3
 
 model:
-  type: deepsets_mlp
+  type: pna
   data_dim: 1
   laten_dim: 10
   accumulator: sum
