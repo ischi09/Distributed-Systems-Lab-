@@ -1,3 +1,4 @@
+from genericpath import exists
 import os
 import time
 import pandas as pd
@@ -53,13 +54,17 @@ class Experiment:
         self.loss_fn = LOSS_FNS[config.experiment.loss]
 
         multisets_id = "multisets" if config.trainset.multisets else "sets"
-        log_dir = os.path.join(
-            config.paths.log,
+        model_subdir = os.path.join(
             self.model_type,
             f"{config.trainset.label}-{multisets_id}",
             f"lr:{config.experiment.lr}-wd:{config.experiment.weight_decay}",
         )
+        log_dir = os.path.join(config.paths.log, model_subdir)
         self.summary_writer = SummaryWriter(log_dir=log_dir)
+
+        model_dir = os.path.join(config.paths.models, model_subdir)
+        os.makedirs(model_dir, exist_ok=True)
+        self.best_model_filename = os.path.join(model_dir, "best_model.pth")
 
         self.results = pd.DataFrame(
             columns=[
@@ -102,7 +107,9 @@ class Experiment:
         print("Done!")
 
     def train(self) -> None:
-        for _ in range(self.config.experiment.epochs):
+        best_valid_loss = float("inf")
+        n_no_improvement_epochs = 0
+        for _ in range(self.config.experiment.max_epochs):
             print(f"\n*** Epoch {self.epoch_counter} ***")
 
             print("Training model...")
@@ -113,10 +120,25 @@ class Experiment:
             avg_valid_loss = self.__eval_model(self.valid_set_loader, "valid_loss")
             print(f"Average validation loss: {avg_valid_loss}")
 
+            if avg_valid_loss < best_valid_loss:
+                print("Validation loss improved!")
+                torch.save(self.model.state_dict(), self.best_model_filename)
+                best_valid_loss = avg_valid_loss
+                n_no_improvement_epochs = 0
+            else:
+                n_no_improvement_epochs += 1
+
+            if (
+                n_no_improvement_epochs
+                >= self.config.experiment.early_stopping_patience
+            ):
+                break
+
             self.epoch_counter += 1
 
     def test(self) -> None:
         print("\nTesting model...")
+        self.model.load_state_dict(torch.load(self.best_model_filename))
         avg_test_loss = self.__eval_model(self.test_set_loader, "test_loss")
         print(f"Average test loss: {avg_test_loss}")
 
@@ -133,7 +155,7 @@ class Experiment:
             "label": testset_config.label,
             "multisets": testset_config.multisets,
             "loss": exp_config.loss,
-            "epochs": exp_config.epochs,
+            "epochs": self.epoch_counter,
             "lr": exp_config.lr,
             "weight_decay": exp_config.weight_decay,
             "avg_test_loss": avg_test_loss,

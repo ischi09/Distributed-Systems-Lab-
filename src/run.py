@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import hydra
 import torch
@@ -9,6 +10,7 @@ from deepsets.experiments import Experiment
 
 
 def set_random_seeds(seed: int) -> None:
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)

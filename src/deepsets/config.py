@@ -4,12 +4,14 @@ from dataclasses import dataclass
 @dataclass
 class Paths:
     log: str
+    models: str
     results: str
 
 
 @dataclass
 class Experiment:
-    epochs: int
+    max_epochs: int
+    early_stopping_patience: int
     lr: float
     batch_size: int
     random_seed: int
