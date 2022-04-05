@@ -62,6 +62,12 @@ def generate_model(config: ModelConfig) -> nn.Module:
             ),
             accumulator=ACCUMLATORS[config.accumulator],
         )
+    elif config.type == "sorted_mlp":
+        model = SortedMLP(
+            input_dim=10,
+            hidden_dim=10,
+            output_dim=config.data_dim,
+        )
     return model
 
 
@@ -99,4 +105,23 @@ class MLP(nn.Module):
         )
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        return self.layers(x)
+
+
+class SortedMLP(nn.Module):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+        super().__init__()
+        self.output_dim = output_dim
+
+        self.layers = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim),
+        )
+
+    def forward(
+        self, x: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        x, _ = torch.sort(x, dim=1)
+        x = x.squeeze(dim=-1)
         return self.layers(x)
