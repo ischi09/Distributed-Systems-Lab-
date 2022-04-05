@@ -14,7 +14,7 @@ experiment:
   weight_decay: 5e-3
 
 model:
-  type: small_set_transformer 
+  type: deepsets_mlp 
   data_dim: 1
   laten_dim: 10
   accumulator: sum
@@ -25,7 +25,7 @@ trainset:
   min_value: 0
   max_value: 10
   label: sum # Independent of accumulator
-  multisets: True
+  multisets: False
 
 validset:
   n_samples: 1000
@@ -33,7 +33,7 @@ validset:
   min_value: 0
   max_value: 10
   label: sum # Independent of accumulator
-  multisets: True
+  multisets: False
 
 testset:
   n_samples: 1000
@@ -41,4 +41,4 @@ testset:
   min_value: 0
   max_value: 10
   label: sum # Independent of accumulator
-  multisets: True
+  multisets: False

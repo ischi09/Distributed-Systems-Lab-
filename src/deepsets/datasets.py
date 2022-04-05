@@ -169,7 +169,7 @@ class SetDataset(Dataset):
         # After processing for later evaluation
         label_list = [labels for _, labels, _ in self.sets]
         self.label_mean = np.mean(label_list)
-        self.label_mode = get_mode(torch.tensor(label_list))
+        self.label_mode = float(get_mode(torch.tensor(label_list)))
         self.label_median = np.median(label_list)
         self.label_max = np.max(label_list)
         self.label_min = np.min(label_list)
