@@ -132,7 +132,6 @@ class SetDataset(Dataset):
     ):
         self.n_samples = n_samples
         self.sets = []
-        self.unpadded = []
 
         for _ in range(n_samples):
             # Generate the actual random set.
@@ -164,22 +163,33 @@ class SetDataset(Dataset):
             mask = to_tensor(mask)
 
             self.sets.append((padded_rand_set, label_generator(rand_set), mask))
-            self.unpadded.append(rand_set)
 
         # After processing for later evaluation
-        self.mean_list = [row.mean() for row in self.unpadded]
-        self.mode_list = [get_mode(row) for row in self.unpadded]
-        self.median_list = [row.median() for row in self.unpadded]
+        label_list = [labels for _, labels, _ in self.sets]
+        self.label_mean = np.mean(label_list)
+        self.label_mode = get_mode(torch.tensor(label_list))
+        self.label_median = np.median(label_list)
+        self.label_max = np.max(label_list)
+        self.label_min = np.min(label_list)
+        self.label_std = np.std(label_list)
 
-    def get_mean(self):
-        return self.mean_list, np.mean(self.mean_list)
+    def get_label_mean(self):
+        return self.label_mean
 
-    # Do we need overall median/mode?
-    def get_mode(self):
-        return self.mode_list
+    def get_label_mode(self):
+        return self.label_mode
 
-    def get_median(self):
-        return self.median_list
+    def get_label_median(self):
+        return self.label_median
+
+    def get_label_max(self):
+        return self.label_max
+
+    def get_label_min(self):
+        return self.label_min
+
+    def get_label_std(self):
+        return self.label_std
 
     def __len__(self) -> int:
         return self.n_samples

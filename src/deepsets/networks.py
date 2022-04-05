@@ -83,20 +83,22 @@ class DeepSetsInvariant(nn.Module):
         return self.rho(x)
 
 
-class pna(nn.Module):
-    def __init__(self, mlp: nn.Module, unpadded: torch.FloatTensor):
+class PNA(nn.Module):
+    def __init__(self, mlp: nn.Module, delta: torch.FloatTensor):
         super().__init__()
         self.mlp = mlp
-        self.unpadded = unpadded
+        self.delta = delta
 
-    def scale_amplification(self, x: torch.FloatTensor) -> torch.FloatTensor:
-        delta = torch.sum(self.unpadded) / torch.size(self.unpadded, dim=1) + 1
-        scale = torch.log(self.unpadded + 1) / delta  # TODO is this right??
-        return torch.mul(x, scale)
+    def scale_amplification(
+        self, x: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        scale = torch.log(mask.sum(dim=1) + 1) / self.delta
+        return x * scale
 
-    def scale_attenuation(self, x: torch.FloatTensor) -> torch.FloatTensor:
-        delta = torch.sum(self.unpadded) / torch.size(self.unpadded, dim=1) + 1
-        scale = delta / torch.log(self.unpadded + 1)  # TODO is this right??
+    def scale_attenuation(
+        self, x: torch.FloatTensor, mask: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        scale = self.delta / torch.log(mask.sum(dim=1) + 1)
         return torch.mul(x, scale)
 
     def forward(
@@ -112,8 +114,8 @@ class pna(nn.Module):
 
         # Scaling
         identity = aggr_concat
-        amplification = self.scale_amplification(aggr_concat)
-        attenuation = self.scale_attenuation(aggr_concat)
+        amplification = self.scale_amplification(aggr_concat, mask)
+        attenuation = self.scale_attenuation(aggr_concat, mask)
 
         scale_concat = torch.concat([identity, amplification, attenuation])
 
