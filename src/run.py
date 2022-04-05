@@ -20,7 +20,7 @@ def main(config: Config):
 
     train_set, valid_set, test_set = generate_datasets(config)
 
-    model = generate_model(config.model)
+    model = generate_model(config.model, delta=train_set.get_delta())
 
     experiment = Experiment(
         config=config,

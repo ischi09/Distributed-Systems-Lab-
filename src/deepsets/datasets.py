@@ -162,7 +162,9 @@ class SetDataset(Dataset):
             padded_rand_set = to_tensor(padded_rand_set)
             mask = to_tensor(mask)
 
-            self.sets.append((padded_rand_set, label_generator(rand_set), mask))
+            self.sets.append(
+                (padded_rand_set, label_generator(rand_set), mask)
+            )
 
         # After processing for later evaluation
         label_list = [labels for _, labels, _ in self.sets]
@@ -173,23 +175,28 @@ class SetDataset(Dataset):
         self.label_min = np.min(label_list)
         self.label_std = np.std(label_list)
 
-    def get_label_mean(self):
+    def get_label_mean(self) -> float:
         return self.label_mean
 
-    def get_label_mode(self):
+    def get_label_mode(self) -> float:
         return self.label_mode
 
-    def get_label_median(self):
+    def get_label_median(self) -> float:
         return self.label_median
 
-    def get_label_max(self):
+    def get_label_max(self) -> float:
         return self.label_max
 
-    def get_label_min(self):
+    def get_label_min(self) -> float:
         return self.label_min
 
-    def get_label_std(self):
+    def get_label_std(self) -> float:
         return self.label_std
+
+    def get_delta(self) -> float:
+        set_degrees = [mask.sum() + 1 for _, _, mask in self.sets]
+        log_set_degrees = np.log(set_degrees)
+        return float(np.mean(log_set_degrees))
 
     def __len__(self) -> int:
         return self.n_samples

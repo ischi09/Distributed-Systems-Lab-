@@ -6,30 +6,40 @@ import torch.nn as nn
 from .config import Model as ModelConfig
 
 
-def accumulate_sum(x: torch.FloatTensor, mask: torch.FloatTensor) -> torch.FloatTensor:
+def accumulate_sum(
+    x: torch.FloatTensor, mask: torch.FloatTensor
+) -> torch.FloatTensor:
     x = x * mask
     return x.sum(axis=1)
 
 
-def accumulate_mean(x: torch.FloatTensor, mask: torch.FloatTensor) -> torch.FloatTensor:
+def accumulate_mean(
+    x: torch.FloatTensor, mask: torch.FloatTensor
+) -> torch.FloatTensor:
     sum = accumulate_sum(x, mask)
     n_elements = mask.sum(axis=1)
     return sum / n_elements
 
 
-def accumulate_std(x: torch.FloatTensor, mask: torch.FloatTensor) -> torch.FloatTensor:
+def accumulate_std(
+    x: torch.FloatTensor, mask: torch.FloatTensor
+) -> torch.FloatTensor:
     mean = accumulate_mean(x, mask).unsqueeze(dim=-1)
     variance = accumulate_mean(torch.square(x - mean), mask)
     return torch.sqrt(variance)
 
 
-def accumulate_max(x: torch.FloatTensor, mask: torch.FloatTensor) -> torch.FloatTensor:
+def accumulate_max(
+    x: torch.FloatTensor, mask: torch.FloatTensor
+) -> torch.FloatTensor:
     neg_infinity = torch.tensor(float("-inf"))
     x = torch.where(mask.byte(), x, neg_infinity)
     return x.max(dim=1).values
 
 
-def accumulate_min(x: torch.FloatTensor, mask: torch.FloatTensor) -> torch.FloatTensor:
+def accumulate_min(
+    x: torch.FloatTensor, mask: torch.FloatTensor
+) -> torch.FloatTensor:
     return -accumulate_max(-x, mask)
 
 
@@ -46,17 +56,30 @@ ACCUMLATORS = {
 }
 
 
-def generate_model(config: ModelConfig) -> nn.Module:
+def generate_model(config: ModelConfig, delta: float) -> nn.Module:
     model = None
     if config.type == "deepsets_mlp":
         model = DeepSetsInvariant(
             phi=MLP(
-                input_dim=config.data_dim, hidden_dim=10, output_dim=config.laten_dim,
+                input_dim=config.data_dim,
+                hidden_dim=10,
+                output_dim=config.laten_dim,
             ),
             rho=MLP(
-                input_dim=config.laten_dim, hidden_dim=10, output_dim=config.data_dim,
+                input_dim=config.laten_dim,
+                hidden_dim=10,
+                output_dim=config.data_dim,
             ),
             accumulator=ACCUMLATORS[config.accumulator],
+        )
+    elif config.type == "pna":
+        model = PNA(
+            mlp=MLP(
+                input_dim=config.data_dim,
+                hidden_dim=10,
+                output_dim=config.data_dim,
+            ),
+            delta=delta,
         )
     return model
 
@@ -84,7 +107,7 @@ class DeepSetsInvariant(nn.Module):
 
 
 class PNA(nn.Module):
-    def __init__(self, mlp: nn.Module, delta: torch.FloatTensor):
+    def __init__(self, mlp: nn.Module, delta: float):
         super().__init__()
         self.mlp = mlp
         self.delta = delta
