@@ -132,6 +132,31 @@ def get_random_set(
     return rand_set
 
 
+def get_longest_len_set(
+    min_value: int, max_value: int, max_set_size: int, generate_multisets: bool
+) -> np.ndarray:
+    values = np.arange(min_value, max_value + 1, 1)
+    set_len = random.randint(1, max_set_size)
+    long_len = random.randint(1, set_len)
+    start = random.randint(0, len(values) - long_len)
+    sequence = values[start : start + long_len]
+
+    set_shape = (long_len - set_len, 1)
+    if generate_multisets:
+        rand_vals = np.random.choice(
+            values, set_shape, replace=generate_multisets
+        )
+
+        return np.shuffle(np.concatenate(sequence, rand_vals))
+
+    remaining_vals = np.array([val for val in values if val not in sequence])
+    rand_vals = np.random.choice(
+        remaining_vals, set_shape, replace=generate_multisets
+    )
+
+    return np.shuffle(np.concatenate(sequence, rand_vals))
+
+
 class SetDataset(Dataset):
     def __init__(
         self,
