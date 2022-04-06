@@ -57,12 +57,12 @@ def get_longest_seq_length(x: torch.Tensor) -> torch.Tensor:
 
 
 def get_largest_contiguous_sum(x: torch.Tensor) -> torch.Tensor:
-    sorted_, _ = torch.sort(x, descending=True)
+    # sorted_, _ = torch.sort(x, descending=True)
     total = 0.0
 
-    for val in sorted_:
+    for val in x:
         if val < 0:
-            break
+            continue
 
         total += float(val)
 
