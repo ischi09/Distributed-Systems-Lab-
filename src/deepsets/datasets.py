@@ -87,49 +87,52 @@ LABEL_GENERATORS = {
 }
 
 
-def generate_datasets(cfg: Config):
-    train = cfg.trainset
-    valid = cfg.validset
-    test = cfg.testset
-
-    train_set = SetDataset(
-        train.n_samples,
-        train.max_set_size,
-        train.min_value,
-        train.max_value,
-        LABEL_GENERATORS[train.label],
-        train.multisets,
-    )
-    valid_set = SetDataset(
-        valid.n_samples,
-        valid.max_set_size,
-        valid.min_value,
-        valid.max_value,
-        LABEL_GENERATORS[valid.label],
-        valid.multisets,
-    )
-    test_set = SetDataset(
-        test.n_samples,
-        test.max_set_size,
-        test.min_value,
-        test.max_value,
-        LABEL_GENERATORS[test.label],
-        test.multisets,
-    )
-
-    return train_set, valid_set, test_set
-
-
-def get_random_set(
-    min_value: int, max_value: int, max_set_size: int, generate_multisets: bool
+def sample_integer_set(
+    min_value: int, max_value: int, max_set_size: int, use_multisets: bool
 ) -> np.ndarray:
     values = np.arange(min_value, max_value)
     rand_set_size = random.randint(1, max_set_size)
     rand_set_shape = (rand_set_size, 1)
-    rand_set = np.random.choice(
-        values, rand_set_shape, replace=generate_multisets
-    )
+    rand_set = np.random.choice(values, rand_set_shape, replace=use_multisets)
     return rand_set
+
+
+def generate_datasets(config: Config):
+    train = config.trainset
+    valid = config.validset
+    test = config.testset
+
+    train_set = SetDataset(
+        n_samples=train.n_samples,
+        max_set_size=train.max_set_size,
+        min_value=train.min_value,
+        max_value=train.max_value,
+        use_multisets=train.multisets,
+        sample_set=sample_integer_set,
+        generate_label=LABEL_GENERATORS[train.label],
+    )
+
+    valid_set = SetDataset(
+        n_samples=valid.n_samples,
+        max_set_size=valid.max_set_size,
+        min_value=valid.min_value,
+        max_value=valid.max_value,
+        use_multisets=valid.multisets,
+        sample_set=sample_integer_set,
+        generate_label=LABEL_GENERATORS[valid.label],
+    )
+
+    test_set = SetDataset(
+        n_samples=test.n_samples,
+        max_set_size=test.max_set_size,
+        min_value=test.min_value,
+        max_value=test.max_value,
+        use_multisets=test.multisets,
+        sample_set=sample_integer_set,
+        generate_label=LABEL_GENERATORS[test.label],
+    )
+
+    return train_set, valid_set, test_set
 
 
 class SetDataset(Dataset):
@@ -139,16 +142,17 @@ class SetDataset(Dataset):
         max_set_size: int,
         min_value: int,
         max_value: int,
-        label_generator: Callable[[Any], Any],
-        generate_multisets=False,
+        use_multisets,
+        sample_set: Callable[[int, int, int, bool], torch.Tensor],
+        generate_label: Callable[[torch.Tensor], torch.Tensor],
     ):
         self.n_samples = n_samples
         self.sets = []
 
         for _ in range(n_samples):
             # Generate the actual random set.
-            rand_set = get_random_set(
-                min_value, max_value, max_set_size, generate_multisets
+            rand_set = sample_set(
+                min_value, max_value, max_set_size, use_multisets
             )
             rand_set_size = rand_set.shape[0]
 
@@ -172,46 +176,26 @@ class SetDataset(Dataset):
             padded_rand_set = to_tensor(padded_rand_set)
             mask = to_tensor(mask)
 
-            self.sets.append(
-                (padded_rand_set, label_generator(rand_set), mask)
-            )
+            self.sets.append((padded_rand_set, generate_label(rand_set), mask))
 
         # After processing for later evaluation
         label_list = [labels for _, labels, _ in self.sets]
         self.label_mean = np.mean(label_list)
         self.label_mode = float(get_mode(torch.tensor(label_list)))
-        self.label_median = np.median(label_list)
-        self.label_max = np.max(label_list)
-        self.label_min = np.min(label_list)
-        self.label_std = np.std(label_list)
+        self.label_median = float(np.median(label_list))
+        self.label_max = float(np.max(label_list))
+        self.label_min = float(np.min(label_list))
+        self.label_std = float(np.std(label_list))
 
-    def get_label_mean(self) -> float:
-        return self.label_mean
-
-    def get_label_mode(self) -> float:
-        return self.label_mode
-
-    def get_label_median(self) -> float:
-        return self.label_median
-
-    def get_label_max(self) -> float:
-        return self.label_max
-
-    def get_label_min(self) -> float:
-        return self.label_min
-
-    def get_label_std(self) -> float:
-        return self.label_std
-
-    def get_delta(self) -> float:
+        # Delta for PNA architecture.
         set_degrees = [mask.sum() + 1 for _, _, mask in self.sets]
         log_set_degrees = np.log(set_degrees)
-        return float(np.mean(log_set_degrees))
+        self.delta = float(np.mean(log_set_degrees))
 
     def __len__(self) -> int:
         return self.n_samples
 
     def __getitem__(
         self, idx
-    ) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return self.sets[idx]

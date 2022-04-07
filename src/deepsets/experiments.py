@@ -88,13 +88,13 @@ class Experiment:
             "train_max_value": [config.trainset.max_value],
             "train_label": [config.trainset.label],
             "train_multisets": [config.trainset.multisets],
-            "train_label_mean": [train_set.get_label_mean()],
-            "train_label_std": [train_set.get_label_std()],
-            "train_label_min": [train_set.get_label_min()],
-            "train_label_max": [train_set.get_label_max()],
-            "train_label_median": [train_set.get_label_median()],
-            "train_label_mode": [train_set.get_label_mode()],
-            "train_delta": [train_set.get_delta()],
+            "train_label_mean": [train_set.label_mean],
+            "train_label_std": [train_set.label_std],
+            "train_label_min": [train_set.label_min],
+            "train_label_max": [train_set.label_max],
+            "train_label_median": [train_set.label_median],
+            "train_label_mode": [train_set.label_mode],
+            "train_delta": [train_set.delta],
         }
 
         valid_set_info = {
@@ -104,13 +104,13 @@ class Experiment:
             "valid_max_value": [config.validset.max_value],
             "valid_label": [config.validset.label],
             "valid_multisets": [config.validset.multisets],
-            "valid_label_mean": [valid_set.get_label_mean()],
-            "valid_label_std": [valid_set.get_label_std()],
-            "valid_label_min": [valid_set.get_label_min()],
-            "valid_label_max": [valid_set.get_label_max()],
-            "valid_label_median": [valid_set.get_label_median()],
-            "valid_label_mode": [valid_set.get_label_mode()],
-            "valid_delta": [valid_set.get_delta()],
+            "valid_label_mean": [valid_set.label_mean],
+            "valid_label_std": [valid_set.label_std],
+            "valid_label_min": [valid_set.label_min],
+            "valid_label_max": [valid_set.label_max],
+            "valid_label_median": [valid_set.label_median],
+            "valid_label_mode": [valid_set.label_mode],
+            "valid_delta": [valid_set.delta],
         }
 
         test_set_info = {
@@ -120,13 +120,13 @@ class Experiment:
             "test_max_value": [config.testset.max_value],
             "test_label": [config.testset.label],
             "test_multisets": [config.testset.multisets],
-            "test_label_mean": [test_set.get_label_mean()],
-            "test_label_std": [test_set.get_label_std()],
-            "test_label_min": [test_set.get_label_min()],
-            "test_label_max": [test_set.get_label_max()],
-            "test_label_median": [test_set.get_label_median()],
-            "test_label_mode": [test_set.get_label_mode()],
-            "test_delta": [test_set.get_delta()],
+            "test_label_mean": [test_set.label_mean],
+            "test_label_std": [test_set.label_std],
+            "test_label_min": [test_set.label_min],
+            "test_label_max": [test_set.label_max],
+            "test_label_median": [test_set.label_median],
+            "test_label_mode": [test_set.label_mode],
+            "test_delta": [test_set.delta],
         }
 
         experiment_info = {
@@ -151,10 +151,11 @@ class Experiment:
 
     def run(self) -> None:
         print("Running experiment with parameters:")
-        print(f"    label: {self.config.trainset.label}")
-        print(f"    loss: {self.config.experiment.loss}")
+        print(f"\tmodel: {self.model_type}")
+        print(f"\tlabel: {self.config.trainset.label}")
+        print(f"\tloss: {self.config.experiment.loss}")
         print(
-            f"    multisets: {'yes' if self.config.trainset.multisets else 'no'}"
+            f"\tmultisets: {'yes' if self.config.trainset.multisets else 'no'}"
         )
 
         start_time = time.time()

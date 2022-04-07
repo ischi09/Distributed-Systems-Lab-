@@ -23,14 +23,14 @@ def main(config: Config):
     train_set, valid_set, test_set = generate_datasets(config)
 
     print("Training Dataset Statistics:")
-    print(f"Label mean: {train_set.get_label_mean()}")
-    print(f"Label std: {train_set.get_label_std()}")
-    print(f"Label median: {train_set.get_label_median()}")
-    print(f"Label mode: {train_set.get_label_mode()}")
-    print(f"Label max: {train_set.get_label_max()}")
-    print(f"Label min: {train_set.get_label_min()}\n")
+    print(f"\tlabel mean: {train_set.label_mean}")
+    print(f"\tlabel std: {train_set.label_std}")
+    print(f"\tlabel median: {train_set.label_median}")
+    print(f"\tlabel mode: {train_set.label_mode}")
+    print(f"\tlabel max: {train_set.label_max}")
+    print(f"\tlabel min: {train_set.label_min}\n")
 
-    model = generate_model(config.model, delta=train_set.get_delta())
+    model = generate_model(config.model, delta=train_set.delta)
 
     experiment = Experiment(
         config=config,
