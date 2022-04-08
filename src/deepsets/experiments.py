@@ -242,11 +242,6 @@ class Experiment:
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
-        # print(f"x = {x}")
-        # print(f"label = {label}")
-        # print(f"pred = {pred}")
-        # print(f"loss = {the_loss}")
-
         the_loss.backward()
         self.optimizer.step()
 

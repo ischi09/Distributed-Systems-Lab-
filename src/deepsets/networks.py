@@ -77,12 +77,16 @@ class PNA(nn.Module):
         self.mlp = mlp
         self.delta = delta
 
-    def scale_amplification(self, x: torch.FloatTensor) -> torch.FloatTensor:
-        scale = math.log(x.size(dim=1) + 1) / self.delta
+    def scale_amplification(
+        self, x: torch.FloatTensor, degree: int
+    ) -> torch.FloatTensor:
+        scale = math.log(degree + 1) / self.delta
         return x * scale
 
-    def scale_attenuation(self, x: torch.FloatTensor) -> torch.FloatTensor:
-        scale = self.delta / math.log(x.size(dim=1) + 1)
+    def scale_attenuation(
+        self, x: torch.FloatTensor, degree: int
+    ) -> torch.FloatTensor:
+        scale = self.delta / math.log(degree + 1)
         return x * scale
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
@@ -96,17 +100,14 @@ class PNA(nn.Module):
 
         # Scaling
         identity = aggr_concat
-        amplification = self.scale_amplification(aggr_concat)
-        attenuation = self.scale_attenuation(aggr_concat)
+        amplification = self.scale_amplification(
+            aggr_concat, degree=x.size(dim=1)
+        )
+        attenuation = self.scale_attenuation(aggr_concat, degree=x.size(dim=1))
 
         scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
 
-        # print(f"x = x")
-        # print(f"aggregated values = {aggr_concat}")
-        # print(f"scaled aggr. values = {scale_concat}")
-        res = self.mlp(scale_concat)
-        # print(f"mlp output = {res}")
-        return res
+        return self.mlp(scale_concat)
 
 
 class MLP(nn.Module):
