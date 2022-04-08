@@ -83,7 +83,7 @@ class PNA(nn.Module):
 
     def scale_attenuation(self, x: torch.FloatTensor) -> torch.FloatTensor:
         scale = self.delta / math.log(x.size(dim=1) + 1)
-        return torch.mul(x, scale)
+        return x * scale
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         # Aggregration

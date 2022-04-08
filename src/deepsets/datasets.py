@@ -113,8 +113,15 @@ class BatchSetSampler(Sampler[List[int]]):
         n_batches = 0
         for set_indices in self.dataset.set_distribution.values():
             n_full_batches = len(set_indices) // self.batch_size
-            n_partial_batches = 0 if len(set_indices) % self.batch_size else 1
+            n_partial_batches = (
+                0 if len(set_indices) % self.batch_size == 0 else 1
+            )
             n_batches += n_full_batches + n_partial_batches
+        #     print(f"no. of indices = {len(set_indices)}")
+        #     print(f"batch size = {self.batch_size}")
+        #     print(f"no. full batches = {n_full_batches}")
+        #     print(f"no. partial batches = {n_partial_batches}")
+        # print(f"no. batches = {n_batches}")
         return n_batches
 
 
