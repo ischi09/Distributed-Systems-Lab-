@@ -37,28 +37,9 @@ class SetDataset(Dataset):
                 min_value, max_value, max_set_size, use_multisets
             )
             rand_set_size = rand_set.shape[0]
+            rand_set = torch.tensor(rand_set, dtype=torch.float)
 
-            # Generate the padding to the maximum size.
-            padding_shape = (max_set_size - rand_set_size, 1)
-            padding = np.zeros(padding_shape, dtype=np.int)
-
-            # Generate padded random set and padding mask.
-            padded_rand_set = np.vstack((rand_set, padding))
-            mask = np.vstack(
-                (
-                    np.ones(rand_set.shape, dtype=np.int),
-                    np.zeros(padding_shape, dtype=np.int),
-                )
-            )
-
-            def to_tensor(x: np.ndarray) -> torch.FloatTensor:
-                return torch.tensor(x, dtype=torch.float)
-
-            rand_set = to_tensor(rand_set)
-            padded_rand_set = to_tensor(padded_rand_set)
-            mask = to_tensor(mask)
-
-            self.sets.append((padded_rand_set, generate_label(rand_set), mask))
+            self.sets.append((rand_set, generate_label(rand_set)))
             try:
                 self.set_distribution[rand_set_size].append(i)
             except KeyError:
@@ -66,7 +47,7 @@ class SetDataset(Dataset):
                 self.set_distribution[rand_set_size].append(i)
 
         # After processing for later evaluation
-        label_list = [labels for _, labels, _ in self.sets]
+        label_list = [label for _, label in self.sets]
         self.label_mean = np.mean(label_list)
         self.label_mode = float(get_mode(torch.tensor(label_list)))
         self.label_median = float(np.median(label_list))
@@ -75,7 +56,7 @@ class SetDataset(Dataset):
         self.label_std = float(np.std(label_list))
 
         # Delta for PNA architecture.
-        set_degrees = [mask.sum() + 1 for _, _, mask in self.sets]
+        set_degrees = [set_.shape[0] + 1 for set_, _, in self.sets]
         log_set_degrees = np.log(set_degrees)
         self.delta = float(np.mean(log_set_degrees))
 

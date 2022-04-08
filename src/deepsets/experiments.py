@@ -220,8 +220,8 @@ class Experiment:
 
         batch_counter = 0
         for batch in tqdm(self.train_set_loader):
-            x, label, mask = batch
-            train_loss = self.__train_step(x, label, mask)
+            x, label = batch
+            train_loss = self.__train_step(x, label)
             total_train_loss += train_loss
 
             step_counter = n_batches * self.epoch_counter + batch_counter
@@ -231,16 +231,13 @@ class Experiment:
         return total_train_loss / n_batches
 
     def __train_step(
-        self,
-        x: torch.FloatTensor,
-        label: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        self, x: torch.FloatTensor, label: torch.FloatTensor
     ) -> float:
         if self.use_cuda:
-            x, label, mask = x.cuda(), label.cuda(), mask.cuda()
+            x, label = x.cuda(), label.cuda()
 
         self.optimizer.zero_grad()
-        pred = self.model(x, mask)
+        pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
@@ -265,8 +262,8 @@ class Experiment:
         with torch.no_grad():
             batch_counter = 0
             for batch in tqdm(data_loader):
-                x, label, mask = batch
-                eval_loss = self.__eval_step(x, label, mask)
+                x, label = batch
+                eval_loss = self.__eval_step(x, label)
                 total_eval_loss += eval_loss
 
                 step_counter = n_batches * self.epoch_counter + batch_counter
@@ -278,15 +275,12 @@ class Experiment:
         return total_eval_loss / n_batches
 
     def __eval_step(
-        self,
-        x: torch.FloatTensor,
-        label: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        self, x: torch.FloatTensor, label: torch.FloatTensor
     ) -> float:
         if self.use_cuda:
-            x, label = x.cuda(), label.cuda(), mask.cuda()
+            x, label = x.cuda(), label.cuda()
 
-        pred = self.model(x, mask)
+        pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
         pred = torch.squeeze(pred, dim=1)
         the_loss = self.loss_fn(pred, label)

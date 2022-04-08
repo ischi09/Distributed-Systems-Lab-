@@ -95,20 +95,15 @@ class DeepSetsInvariant(nn.Module):
         self,
         phi: nn.Module,
         rho: nn.Module,
-        accumulator: Callable[
-            [torch.FloatTensor, torch.FloatTensor], torch.FloatTensor
-        ],
+        accumulator: Callable[[torch.FloatTensor], torch.FloatTensor],
     ):
         super().__init__()
         self.phi = phi
         self.rho = rho
         self.accumulator = accumulator
 
-    def forward(
-        self, x: torch.FloatTensor, mask: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        print(x.size())
-        x = self.phi(x)  # x.shape = (batch_size, max_set_size, input_dim)
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        x = self.phi(x)  # x.shape = (batch_size, set_size, input_dim)
         x = self.accumulator(x)
         return self.rho(x)
 
