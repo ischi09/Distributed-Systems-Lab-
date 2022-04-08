@@ -49,7 +49,8 @@ def count_parameters(model: nn.Module) -> int:
 
 
 ACCUMLATORS = {
-    "sum": accumulate_sum,
+    # "sum": accumulate_sum,
+    "sum": lambda x: x.sum(dim=1),
     "mean": accumulate_mean,
     "std": accumulate_std,
     "max": accumulate_max,
@@ -106,8 +107,9 @@ class DeepSetsInvariant(nn.Module):
     def forward(
         self, x: torch.FloatTensor, mask: torch.FloatTensor
     ) -> torch.FloatTensor:
+        print(x.size())
         x = self.phi(x)  # x.shape = (batch_size, max_set_size, input_dim)
-        x = self.accumulator(x, mask)
+        x = self.accumulator(x)
         return self.rho(x)
 
 

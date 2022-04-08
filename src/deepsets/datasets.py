@@ -1,12 +1,140 @@
-from typing import Callable, Any, Tuple
+from typing import Callable, List, Tuple, Iterator
 import random
 
 from .config import Config
 import hydra
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
+from torch.utils.data.sampler import (
+    Sampler,
+    RandomSampler,
+    SubsetRandomSampler,
+)
 from functools import partial
+
+
+class SetDataset(Dataset):
+    def __init__(
+        self,
+        n_samples: int,
+        max_set_size: int,
+        min_value: int,
+        max_value: int,
+        use_multisets,
+        sample_set: Callable[[int, int, int, bool], torch.Tensor],
+        generate_label: Callable[[torch.Tensor], torch.Tensor],
+    ):
+        self.n_samples = n_samples
+        self.sets = []
+        # Map from set size to indices in sets list that have this size.
+        self.set_distribution = {}
+
+        for i in range(n_samples):
+            # Generate the actual random set.
+            rand_set = sample_set(
+                min_value, max_value, max_set_size, use_multisets
+            )
+            rand_set_size = rand_set.shape[0]
+
+            # Generate the padding to the maximum size.
+            padding_shape = (max_set_size - rand_set_size, 1)
+            padding = np.zeros(padding_shape, dtype=np.int)
+
+            # Generate padded random set and padding mask.
+            padded_rand_set = np.vstack((rand_set, padding))
+            mask = np.vstack(
+                (
+                    np.ones(rand_set.shape, dtype=np.int),
+                    np.zeros(padding_shape, dtype=np.int),
+                )
+            )
+
+            def to_tensor(x: np.ndarray) -> torch.FloatTensor:
+                return torch.tensor(x, dtype=torch.float)
+
+            rand_set = to_tensor(rand_set)
+            padded_rand_set = to_tensor(padded_rand_set)
+            mask = to_tensor(mask)
+
+            self.sets.append((padded_rand_set, generate_label(rand_set), mask))
+            try:
+                self.set_distribution[rand_set_size].append(i)
+            except KeyError:
+                self.set_distribution[rand_set_size] = []
+                self.set_distribution[rand_set_size].append(i)
+
+        # After processing for later evaluation
+        label_list = [labels for _, labels, _ in self.sets]
+        self.label_mean = np.mean(label_list)
+        self.label_mode = float(get_mode(torch.tensor(label_list)))
+        self.label_median = float(np.median(label_list))
+        self.label_max = float(np.max(label_list))
+        self.label_min = float(np.min(label_list))
+        self.label_std = float(np.std(label_list))
+
+        # Delta for PNA architecture.
+        set_degrees = [mask.sum() + 1 for _, _, mask in self.sets]
+        log_set_degrees = np.log(set_degrees)
+        self.delta = float(np.mean(log_set_degrees))
+
+    def __len__(self) -> int:
+        return self.n_samples
+
+    def __getitem__(
+        self, idx
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return self.sets[idx]
+
+
+class BatchSetSampler(Sampler[List[int]]):
+    def __init__(
+        self, dataset: SetDataset, batch_size: int, generator=None
+    ) -> None:
+        self.dataset = dataset
+        self.batch_size = batch_size
+
+        if generator is None:
+            seed = int(torch.empty((), dtype=torch.int64).random_().item())
+            self.generator = torch.Generator()
+            self.generator.manual_seed(seed)
+        else:
+            self.generator = generator
+
+    def __iter__(self) -> Iterator[List[int]]:
+        # Precompute random assignments of equal-length sets into batches. This
+        # ensures that a single batch has sets of all the same lengths.
+        batches = []
+        for set_indices in self.dataset.set_distribution.values():
+            set_index_sampler = SubsetRandomSampler(
+                indices=set_indices, generator=self.generator
+            )
+            batch = []
+            for idx in set_index_sampler:
+                batch.append(idx)
+                if len(batch) == self.batch_size:
+                    batches.append(batch[:])
+                    batch = []
+            if len(batch) > 0:
+                batches.append(batch[:])
+
+        # Yield batches in random order. This ensures that two batches sampled
+        # after each other will likely have sets of different lengths while
+        # within the batch have sets of all the same length.
+        batch_sampler = RandomSampler(
+            data_source=batches, generator=self.generator
+        )
+        for idx in batch_sampler:
+            yield batches[idx]
+
+    def __len__(self) -> int:
+        n_batches = 0
+        for set_indices in self.dataset.set_distribution.values():
+            n_full_batches = len(set_indices) // self.batch_size
+            n_partial_batches = 0 if len(set_indices) % self.batch_size else 1
+            n_batches += n_full_batches + n_partial_batches
+        return n_batches
 
 
 def get_max(x: torch.Tensor) -> torch.Tensor:
@@ -135,67 +263,6 @@ def generate_datasets(config: Config):
     return train_set, valid_set, test_set
 
 
-class SetDataset(Dataset):
-    def __init__(
-        self,
-        n_samples: int,
-        max_set_size: int,
-        min_value: int,
-        max_value: int,
-        use_multisets,
-        sample_set: Callable[[int, int, int, bool], torch.Tensor],
-        generate_label: Callable[[torch.Tensor], torch.Tensor],
-    ):
-        self.n_samples = n_samples
-        self.sets = []
-
-        for _ in range(n_samples):
-            # Generate the actual random set.
-            rand_set = sample_set(
-                min_value, max_value, max_set_size, use_multisets
-            )
-            rand_set_size = rand_set.shape[0]
-
-            # Generate the padding to the maximum size.
-            padding_shape = (max_set_size - rand_set_size, 1)
-            padding = np.zeros(padding_shape, dtype=np.int)
-
-            # Generate padded random set and padding mask.
-            padded_rand_set = np.vstack((rand_set, padding))
-            mask = np.vstack(
-                (
-                    np.ones(rand_set.shape, dtype=np.int),
-                    np.zeros(padding_shape, dtype=np.int),
-                )
-            )
-
-            def to_tensor(x: np.ndarray) -> torch.FloatTensor:
-                return torch.tensor(x, dtype=torch.float)
-
-            rand_set = to_tensor(rand_set)
-            padded_rand_set = to_tensor(padded_rand_set)
-            mask = to_tensor(mask)
-
-            self.sets.append((padded_rand_set, generate_label(rand_set), mask))
-
-        # After processing for later evaluation
-        label_list = [labels for _, labels, _ in self.sets]
-        self.label_mean = np.mean(label_list)
-        self.label_mode = float(get_mode(torch.tensor(label_list)))
-        self.label_median = float(np.median(label_list))
-        self.label_max = float(np.max(label_list))
-        self.label_min = float(np.min(label_list))
-        self.label_std = float(np.std(label_list))
-
-        # Delta for PNA architecture.
-        set_degrees = [mask.sum() + 1 for _, _, mask in self.sets]
-        log_set_degrees = np.log(set_degrees)
-        self.delta = float(np.mean(log_set_degrees))
-
-    def __len__(self) -> int:
-        return self.n_samples
-
-    def __getitem__(
-        self, idx
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return self.sets[idx]
+def get_data_loader(dataset: SetDataset, batch_size: int) -> DataLoader:
+    batch_sampler = BatchSetSampler(dataset, batch_size)
+    return DataLoader(dataset=dataset, batch_sampler=batch_sampler)

@@ -12,16 +12,10 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from .config import Config
-from .datasets import SetDataset
+from .datasets import SetDataset, get_data_loader
 from .networks import count_parameters
 
 LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
-
-
-def get_data_loader(
-    dataset: SetDataset, batch_size: int, shuffle=True
-) -> DataLoader:
-    return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
 
 
 class Experiment:
