@@ -22,8 +22,8 @@ git clone https://github.com/juho-lee/set_transformer.git
 | ------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
 | [DeepSets with MLP](https://proceedings.neurips.cc/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html)       | `deepsets_mlp`          |
 | [Principal Neighbourhood Aggregation](https://papers.nips.cc/paper/2020/file/99cad265a1768cc2dd013f0e740300ae-Paper.pdf) | `pna`                   |
-| [Small Set Transformer]()                                                                                                | `small_set_transformer` |
-| [Sorted_MLP]()                                                                                                           | `sorted_mlp`            |
+| [Small Set Transformer](https://proceedings.mlr.press/v97/lee19d.html)                                                   | `small_set_transformer` |
+| [Sorted_MLP](https://proceedings.mlr.press/v108/skianis20a.html)                                                         | `sorted_mlp`            |
 
 ## Available Labels (Tasks)
 
