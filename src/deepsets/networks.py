@@ -15,7 +15,7 @@ def count_parameters(model: nn.Module) -> int:
 ACCUMLATORS = {
     "sum": lambda x: x.sum(dim=1),
     "mean": lambda x: x.mean(dim=1),
-    "std": lambda x: x.std(dim=1),
+    "std": lambda x: x.std(dim=1, unbiased=False),
     "max": lambda x: x.max(dim=1).values,
     "min": lambda x: x.min(dim=1).values,
 }
@@ -100,7 +100,13 @@ class PNA(nn.Module):
         attenuation = self.scale_attenuation(aggr_concat)
 
         scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
-        return self.mlp(scale_concat)
+
+        # print(f"x = x")
+        # print(f"aggregated values = {aggr_concat}")
+        # print(f"scaled aggr. values = {scale_concat}")
+        res = self.mlp(scale_concat)
+        # print(f"mlp output = {res}")
+        return res
 
 
 class MLP(nn.Module):
