@@ -1,5 +1,6 @@
 from typing import Callable
 
+import math
 import torch
 import torch.nn as nn
 
@@ -7,54 +8,16 @@ from .config import Model as ModelConfig
 from .set_transformer.modules import SAB, PMA
 
 
-def accumulate_sum(
-    x: torch.FloatTensor, mask: torch.FloatTensor
-) -> torch.FloatTensor:
-    x = x * mask
-    return x.sum(axis=1)
-
-
-def accumulate_mean(
-    x: torch.FloatTensor, mask: torch.FloatTensor
-) -> torch.FloatTensor:
-    sum = accumulate_sum(x, mask)
-    n_elements = mask.sum(axis=1)
-    return sum / n_elements
-
-
-def accumulate_std(
-    x: torch.FloatTensor, mask: torch.FloatTensor
-) -> torch.FloatTensor:
-    mean = accumulate_mean(x, mask).unsqueeze(dim=-1)
-    variance = accumulate_mean(torch.square(x - mean), mask)
-    return torch.sqrt(variance)
-
-
-def accumulate_max(
-    x: torch.FloatTensor, mask: torch.FloatTensor
-) -> torch.FloatTensor:
-    neg_infinity = torch.tensor(float("-inf"))
-    x = torch.where(mask.byte(), x, neg_infinity)
-    return x.max(dim=1).values
-
-
-def accumulate_min(
-    x: torch.FloatTensor, mask: torch.FloatTensor
-) -> torch.FloatTensor:
-    return -accumulate_max(-x, mask)
-
-
 def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 ACCUMLATORS = {
-    # "sum": accumulate_sum,
     "sum": lambda x: x.sum(dim=1),
-    "mean": accumulate_mean,
-    "std": accumulate_std,
-    "max": accumulate_max,
-    "min": accumulate_min,
+    "mean": lambda x: x.mean(dim=1),
+    "std": lambda x: x.std(dim=1),
+    "max": lambda x: x.max(dim=1).values,
+    "min": lambda x: x.min(dim=1).values,
 }
 
 
@@ -114,33 +77,27 @@ class PNA(nn.Module):
         self.mlp = mlp
         self.delta = delta
 
-    def scale_amplification(
-        self, x: torch.FloatTensor, mask: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        scale = torch.log(mask.sum(dim=1) + 1) / self.delta
+    def scale_amplification(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        scale = math.log(x.size(dim=1) + 1) / self.delta
         return x * scale
 
-    def scale_attenuation(
-        self, x: torch.FloatTensor, mask: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        scale = self.delta / torch.log(mask.sum(dim=1) + 1)
+    def scale_attenuation(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        scale = self.delta / math.log(x.size(dim=1) + 1)
         return torch.mul(x, scale)
 
-    def forward(
-        self, x: torch.FloatTensor, mask: torch.FloatTensor
-    ) -> torch.FloatTensor:
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         # Aggregration
-        mean = accumulate_mean(x, mask)
-        agg_max = accumulate_max(x, mask)
-        agg_min = accumulate_min(x, mask)
-        std = accumulate_std(x, mask)
+        mean = ACCUMLATORS["mean"](x)
+        agg_max = ACCUMLATORS["max"](x)
+        agg_min = ACCUMLATORS["min"](x)
+        std = ACCUMLATORS["std"](x)
 
         aggr_concat = torch.cat((mean, agg_max, agg_min, std), dim=1)
 
         # Scaling
         identity = aggr_concat
-        amplification = self.scale_amplification(aggr_concat, mask)
-        attenuation = self.scale_attenuation(aggr_concat, mask)
+        amplification = self.scale_amplification(aggr_concat)
+        attenuation = self.scale_attenuation(aggr_concat)
 
         scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
         return self.mlp(scale_concat)
@@ -172,9 +129,7 @@ class SortedMLP(nn.Module):
             nn.Linear(hidden_dim, output_dim),
         )
 
-    def forward(
-        self, x: torch.FloatTensor, mask: torch.FloatTensor
-    ) -> torch.FloatTensor:
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         x, _ = torch.sort(x, dim=1)
         x = x.squeeze(dim=-1)
         return self.layers(x)
@@ -192,7 +147,7 @@ class SmallSetTransformer(nn.Module):
             nn.Linear(in_features=64, out_features=1),
         )
 
-    def forward(self, x, mask):
+    def forward(self, x):
         x = self.enc(x)
         x = self.dec(x)
         return x.squeeze(-1)
