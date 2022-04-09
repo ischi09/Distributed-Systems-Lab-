@@ -61,7 +61,9 @@ class Experiment:
         model_subdir = os.path.join(
             self.model_type,
             f"{config.trainset.label}-{multisets_id}",
-            f"lr:{config.experiment.lr}-wd:{config.experiment.weight_decay}",
+            f"lr:{config.experiment.lr}-"
+            + f"wd:{config.experiment.weight_decay}-"
+            + f"{config.experiment.batch_size}",
         )
         log_dir = os.path.join(config.paths.log, model_subdir)
         self.summary_writer = SummaryWriter(log_dir=log_dir)
@@ -242,7 +244,39 @@ class Experiment:
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
+        # print(f"x = {x.squeeze()}")
+        # print(f"label = {label}")
+        # print(f"pred = {pred}")
+        # print(f"loss = {the_loss}")
+
         the_loss.backward()
+
+        # norm_type = 2.0
+        # device = "cpu"
+        # total_norm = torch.norm(
+        #     torch.stack(
+        #         [
+        #             torch.norm(p.grad.detach(), norm_type).to(device)
+        #             for p in self.model.parameters()
+        #         ]
+        #     ),
+        #     norm_type,
+        # )
+        # print(f"PRE-CLIP total gradient norm: {total_norm}")
+
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 50.0)
+
+        # total_norm = torch.norm(
+        #     torch.stack(
+        #         [
+        #             torch.norm(p.grad.detach(), norm_type).to(device)
+        #             for p in self.model.parameters()
+        #         ]
+        #     ),
+        #     norm_type,
+        # )
+        # print(f"POST-CLIP total gradient norm: {total_norm}")
+
         self.optimizer.step()
 
         the_loss_tensor = the_loss.data

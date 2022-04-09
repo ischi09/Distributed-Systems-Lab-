@@ -157,4 +157,4 @@ class SmallSetTransformer(nn.Module):
     def forward(self, x):
         x = self.enc(x)
         x = self.dec(x)
-        return x.squeeze(-1)
+        return x.squeeze(dim=-1)

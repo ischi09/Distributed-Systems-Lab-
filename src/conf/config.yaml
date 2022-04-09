@@ -7,20 +7,20 @@ paths:
 experiment:
   max_epochs: 200
   early_stopping_patience: 5
-  lr: 0.001
-  batch_size: 64
+  lr: 0.0001
+  batch_size: 1024
   random_seed: 99
   loss: mse
   weight_decay: 5e-3
 
 model:
-  type: pna
+  type: small_set_transformer
   data_dim: 1
   laten_dim: 10
   accumulator: sum
 
 trainset:
-  n_samples: 10000
+  n_samples: 100000
   max_set_size: 10
   min_value: 0
   max_value: 10
@@ -28,7 +28,7 @@ trainset:
   multisets: True 
 
 validset:
-  n_samples: 1000
+  n_samples: 10000
   max_set_size: 10
   min_value: 0
   max_value: 10
@@ -36,7 +36,7 @@ validset:
   multisets: True 
 
 testset:
-  n_samples: 1000
+  n_samples: 10000
   max_set_size: 10
   min_value: 0
   max_value: 10
