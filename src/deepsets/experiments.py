@@ -135,6 +135,30 @@ class Experiment:
             "random_seed": [config.experiment.random_seed],
         }
 
+        print("*** Experiment Setup ***\n")
+
+        print("Training set:")
+        for key, value in train_set_info.items():
+            print(f"\t{key[6:]}: {value[0]}")
+
+        print("\nValidation set:")
+        for key, value in valid_set_info.items():
+            print(f"\t{key[6:]}: {value[0]}")
+
+        print("\nTest set:")
+        for key, value in test_set_info.items():
+            print(f"\t{key[5:]}: {value[0]}")
+
+        print("\nModel:")
+        for key, value in model_info.items():
+            print(f"\t{key}: {value[0]}")
+
+        print("\nTraining:")
+        for key, value in experiment_info.items():
+            print(f"\t{key}: {value[0]}")
+
+        print("")
+
         self.results = {
             **model_info,
             **train_set_info,
@@ -144,14 +168,6 @@ class Experiment:
         }
 
     def run(self) -> None:
-        print("Running experiment with parameters:")
-        print(f"\tmodel: {self.model_type}")
-        print(f"\tlabel: {self.config.trainset.label}")
-        print(f"\tloss: {self.config.experiment.loss}")
-        print(
-            f"\tmultisets: {'yes' if self.config.trainset.multisets else 'no'}"
-        )
-
         start_time = time.time()
         self.train()
         self.test()
