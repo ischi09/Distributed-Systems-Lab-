@@ -130,8 +130,8 @@ class Experiment:
             "batch_size": [config.experiment.batch_size],
             "loss": [config.experiment.loss],
             "max_epochs": [config.experiment.max_epochs],
-            "early_stopping_patience": [config.experiment.patience],
-            "early_stopping_min_delta": [config.experiment.min_delta],
+            "patience": [config.experiment.patience],
+            "min_delta": [config.experiment.min_delta],
             "random_seed": [config.experiment.random_seed],
         }
 
@@ -176,17 +176,21 @@ class Experiment:
             print(f"\n*** Epoch {self.epoch_counter} ***")
 
             print("Training model...")
-            avg_train_loss = self.__train_model("train_loss")
+            avg_train_loss = self._train_model("train_loss")
             print(f"Average train loss: {avg_train_loss}")
 
             print("Validating model...")
-            avg_valid_loss = self.__eval_model(
+            avg_valid_loss = self._eval_model(
                 self.valid_set_loader, "valid_loss"
             )
             print(f"Average validation loss: {avg_valid_loss}")
 
-            if avg_valid_loss < best_valid_loss:
-                print("Validation loss improved!")
+            if self._has_loss_improved(best_valid_loss, avg_valid_loss):
+                loss_improvement = abs(best_valid_loss - avg_valid_loss)
+                print(
+                    f"Best validation loss has improved by {loss_improvement}!"
+                )
+
                 torch.save(self.model.state_dict(), self.best_model_filename)
                 best_valid_loss = avg_valid_loss
                 n_no_improvement_epochs = 0
@@ -205,12 +209,12 @@ class Experiment:
     def test(self) -> None:
         print("\nTesting model...")
         self.model.load_state_dict(torch.load(self.best_model_filename))
-        avg_test_loss = self.__eval_model(self.test_set_loader, "test_loss")
+        avg_test_loss = self._eval_model(self.test_set_loader, "test_loss")
         print(f"Average test loss: {avg_test_loss}")
 
         self.results["avg_test_loss"] = [avg_test_loss]
 
-    def __train_model(self, loss_id: str) -> float:
+    def _train_model(self, loss_id: str) -> float:
         self.model.train()
         n_batches = len(self.train_set_loader)
         total_train_loss = 0.0
@@ -218,7 +222,7 @@ class Experiment:
         batch_counter = 0
         for batch in tqdm(self.train_set_loader):
             x, label = batch
-            train_loss = self.__train_step(x, label)
+            train_loss = self._train_step(x, label)
             total_train_loss += train_loss
 
             step_counter = n_batches * self.epoch_counter + batch_counter
@@ -227,9 +231,7 @@ class Experiment:
 
         return total_train_loss / n_batches
 
-    def __train_step(
-        self, x: torch.FloatTensor, label: torch.FloatTensor
-    ) -> float:
+    def _train_step(self, x: torch.Tensor, label: torch.Tensor) -> float:
         if self.use_cuda:
             x, label = x.cuda(), label.cuda()
 
@@ -283,7 +285,7 @@ class Experiment:
 
         return the_loss_float
 
-    def __eval_model(self, data_loader: DataLoader, loss_id: str) -> float:
+    def _eval_model(self, data_loader: DataLoader, loss_id: str) -> float:
         self.model.eval()
         n_batches = len(data_loader)
         total_eval_loss = 0.0
@@ -292,7 +294,7 @@ class Experiment:
             batch_counter = 0
             for batch in tqdm(data_loader):
                 x, label = batch
-                eval_loss = self.__eval_step(x, label)
+                eval_loss = self._eval_step(x, label)
                 total_eval_loss += eval_loss
 
                 step_counter = n_batches * self.epoch_counter + batch_counter
@@ -303,15 +305,13 @@ class Experiment:
 
         return total_eval_loss / n_batches
 
-    def __eval_step(
-        self, x: torch.FloatTensor, label: torch.FloatTensor
-    ) -> float:
+    def _eval_step(self, x: torch.Tensor, label: torch.Tensor) -> float:
         if self.use_cuda:
             x, label = x.cuda(), label.cuda()
 
         pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
-        pred = torch.squeeze(pred, dim=1)
+        pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
         the_loss_tensor = the_loss.data
@@ -322,3 +322,6 @@ class Experiment:
         the_loss_float = float(the_loss_numpy[0])
 
         return the_loss_float
+
+    def _has_loss_improved(self, best_loss: float, new_loss: float) -> bool:
+        return self.config.experiment.min_delta < best_loss - new_loss
