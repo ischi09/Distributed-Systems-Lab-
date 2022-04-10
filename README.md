@@ -1,15 +1,19 @@
-# Distributed Systems Lab
+# Neural Networks - Set Functions
 
-Additionally to installing requirements.txt via conda, you need to run the following command:
+## Conda Environment Setup
 
+Run the following command in the repository root:
+
+```bash
+conda env create -f environment.yml
 ```
-python -m pip install hydra-core
-```
 
-as well as clone the [Set Transformer repository](https://github.com/juho-lee/set_transformer)
-_when inside the `deepsets` folder_:
+## Cloning Model Code
 
-```
+From the repository root, move to the `deepsets` folder and clone the
+[Set Transformer repository](https://github.com/juho-lee/set_transformer):
+
+```bash
 cd src/deepsets
 git clone https://github.com/juho-lee/set_transformer.git
 ```
