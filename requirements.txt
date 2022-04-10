@@ -1,8 +1,0 @@
-numpy
-pandas
-matplotlib
-ipython
-jupyter
-pytorch
-tensorboard
-tqdm

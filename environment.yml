@@ -1,0 +1,17 @@
+name: set-ml
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8.12
+  - pip
+  - numpy
+  - pandas
+  - matplotlib
+  - ipython
+  - jupyter
+  - tensorboard
+  - tqdm
+  - pytorch
+  - pip:
+    - hydra-core
+    - torch-tb-profiler
