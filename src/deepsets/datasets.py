@@ -2,7 +2,6 @@ from typing import Callable, Any, Tuple
 import random
 
 from .config import Config
-import hydra
 import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
@@ -36,7 +35,7 @@ def get_longest_seq_length(x: torch.Tensor) -> torch.Tensor:
     Example:
         [2, 4, 1, 5, 7] -> 2 (because 1,2 or 4,5 are consecutive)
     """
-    sorted_, _ = torch.sort(x)
+    sorted_ = sorted(x.flatten().tolist())
     max_length = 1
     cur_length = 1
     last_val = None
@@ -47,30 +46,27 @@ def get_longest_seq_length(x: torch.Tensor) -> torch.Tensor:
 
         if last_val + 1 == val or last_val == val:
             cur_length += 1
+
         else:
             max_length = max(max_length, cur_length)
             cur_length = 1
 
         last_val = val
 
+    max_length = max(max_length, cur_length)
     return torch.tensor(max_length, dtype=torch.float)
 
 
 def get_largest_contiguous_sum(x: torch.Tensor) -> torch.Tensor:
-    sorted_, _ = torch.sort(x, descending=True)
-    total = 0.0
+    values = x.flatten().tolist()
+    max_val = max(values)
 
-    for val in sorted_:
-        if val < 0:
-            break
-
-        total += float(val)
-
-    return torch.tensor(total, dtype=torch.float)
+    result = max_val if max_val < 0 else sum([max(v, 0) for v in values])
+    return torch.tensor(result, dtype=torch.float)
 
 
 def get_largest_n_tuple_sum(x: torch.Tensor, n: int) -> torch.Tensor:
-    sorted_, _ = torch.sort(x, descending=True)
+    sorted_, _ = torch.sort(x, 0, descending=True)
     return sorted_[:n].sum()
 
 
@@ -123,13 +119,40 @@ def generate_datasets(cfg: Config):
 def get_random_set(
     min_value: int, max_value: int, max_set_size: int, generate_multisets: bool
 ) -> np.ndarray:
-    values = np.arange(min_value, max_value)
+    values = np.arange(min_value, max_value + 1)
     rand_set_size = random.randint(1, max_set_size)
     rand_set_shape = (rand_set_size, 1)
     rand_set = np.random.choice(
         values, rand_set_shape, replace=generate_multisets
     )
     return rand_set
+
+
+def get_longest_len_set(
+    min_value: int, max_value: int, max_set_size: int, generate_multisets: bool
+) -> np.ndarray:
+    values = np.arange(min_value, max_value + 1)
+    set_len = random.randint(1, max_set_size)
+    long_len = random.randint(1, set_len)
+    start = random.randint(0, len(values) - 1 - long_len)
+    sequence = values[start : start + long_len]
+
+    set_shape = (set_len - long_len, 1)
+    if generate_multisets:
+        rand_vals = np.random.choice(
+            values, set_shape, replace=generate_multisets
+        )
+    else:
+        remaining_vals = np.array(
+            [val for val in values if val not in sequence]
+        )
+        rand_vals = np.random.choice(
+            remaining_vals, set_shape, replace=generate_multisets
+        )
+
+    final = np.concatenate((sequence[..., np.newaxis], rand_vals))
+    np.random.shuffle(final)
+    return final
 
 
 class SetDataset(Dataset):
