@@ -6,7 +6,8 @@ paths:
 
 experiment:
   max_epochs: 200
-  early_stopping_patience: 5
+  patience: 5
+  min_delta: 0.0
   lr: 0.001
   batch_size: 64
   random_seed: 99

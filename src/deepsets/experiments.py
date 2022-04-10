@@ -1,4 +1,3 @@
-from genericpath import exists
 import os
 import time
 import pandas as pd
@@ -131,9 +130,8 @@ class Experiment:
             "batch_size": [config.experiment.batch_size],
             "loss": [config.experiment.loss],
             "max_epochs": [config.experiment.max_epochs],
-            "early_stopping_patience": [
-                config.experiment.early_stopping_patience
-            ],
+            "early_stopping_patience": [config.experiment.patience],
+            "early_stopping_min_delta": [config.experiment.min_delta],
             "random_seed": [config.experiment.random_seed],
         }
 
@@ -195,10 +193,7 @@ class Experiment:
             else:
                 n_no_improvement_epochs += 1
 
-            if (
-                n_no_improvement_epochs
-                >= self.config.experiment.early_stopping_patience
-            ):
+            if n_no_improvement_epochs >= self.config.experiment.patience:
                 break
 
             self.epoch_counter += 1
@@ -215,7 +210,7 @@ class Experiment:
 
         self.results["avg_test_loss"] = [avg_test_loss]
 
-    def __train_model(self, loss_id: str) -> None:
+    def __train_model(self, loss_id: str) -> float:
         self.model.train()
         n_batches = len(self.train_set_loader)
         total_train_loss = 0.0

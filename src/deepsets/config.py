@@ -11,7 +11,8 @@ class Paths:
 @dataclass
 class Experiment:
     max_epochs: int
-    early_stopping_patience: int
+    patience: int
+    min_delta: float
     lr: float
     batch_size: int
     random_seed: int
