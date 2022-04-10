@@ -12,16 +12,10 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from .config import Config
-from .datasets import SetDataset
+from .datasets import SetDataset, get_data_loader
 from .networks import count_parameters
 
 LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
-
-
-def get_data_loader(
-    dataset: SetDataset, batch_size: int, shuffle=True
-) -> DataLoader:
-    return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
 
 
 class Experiment:
@@ -67,7 +61,9 @@ class Experiment:
         model_subdir = os.path.join(
             self.model_type,
             f"{config.trainset.label}-{multisets_id}",
-            f"lr:{config.experiment.lr}-wd:{config.experiment.weight_decay}",
+            f"lr:{config.experiment.lr}-"
+            + f"wd:{config.experiment.weight_decay}-"
+            + f"{config.experiment.batch_size}",
         )
         log_dir = os.path.join(config.paths.log, model_subdir)
         self.summary_writer = SummaryWriter(log_dir=log_dir)
@@ -88,13 +84,13 @@ class Experiment:
             "train_max_value": [config.trainset.max_value],
             "train_label": [config.trainset.label],
             "train_multisets": [config.trainset.multisets],
-            "train_label_mean": [train_set.get_label_mean()],
-            "train_label_std": [train_set.get_label_std()],
-            "train_label_min": [train_set.get_label_min()],
-            "train_label_max": [train_set.get_label_max()],
-            "train_label_median": [train_set.get_label_median()],
-            "train_label_mode": [train_set.get_label_mode()],
-            "train_delta": [train_set.get_delta()],
+            "train_label_mean": [train_set.label_mean],
+            "train_label_std": [train_set.label_std],
+            "train_label_min": [train_set.label_min],
+            "train_label_max": [train_set.label_max],
+            "train_label_median": [train_set.label_median],
+            "train_label_mode": [train_set.label_mode],
+            "train_delta": [train_set.delta],
         }
 
         valid_set_info = {
@@ -104,13 +100,13 @@ class Experiment:
             "valid_max_value": [config.validset.max_value],
             "valid_label": [config.validset.label],
             "valid_multisets": [config.validset.multisets],
-            "valid_label_mean": [valid_set.get_label_mean()],
-            "valid_label_std": [valid_set.get_label_std()],
-            "valid_label_min": [valid_set.get_label_min()],
-            "valid_label_max": [valid_set.get_label_max()],
-            "valid_label_median": [valid_set.get_label_median()],
-            "valid_label_mode": [valid_set.get_label_mode()],
-            "valid_delta": [valid_set.get_delta()],
+            "valid_label_mean": [valid_set.label_mean],
+            "valid_label_std": [valid_set.label_std],
+            "valid_label_min": [valid_set.label_min],
+            "valid_label_max": [valid_set.label_max],
+            "valid_label_median": [valid_set.label_median],
+            "valid_label_mode": [valid_set.label_mode],
+            "valid_delta": [valid_set.delta],
         }
 
         test_set_info = {
@@ -120,13 +116,13 @@ class Experiment:
             "test_max_value": [config.testset.max_value],
             "test_label": [config.testset.label],
             "test_multisets": [config.testset.multisets],
-            "test_label_mean": [test_set.get_label_mean()],
-            "test_label_std": [test_set.get_label_std()],
-            "test_label_min": [test_set.get_label_min()],
-            "test_label_max": [test_set.get_label_max()],
-            "test_label_median": [test_set.get_label_median()],
-            "test_label_mode": [test_set.get_label_mode()],
-            "test_delta": [test_set.get_delta()],
+            "test_label_mean": [test_set.label_mean],
+            "test_label_std": [test_set.label_std],
+            "test_label_min": [test_set.label_min],
+            "test_label_max": [test_set.label_max],
+            "test_label_median": [test_set.label_median],
+            "test_label_mode": [test_set.label_mode],
+            "test_delta": [test_set.delta],
         }
 
         experiment_info = {
@@ -151,10 +147,11 @@ class Experiment:
 
     def run(self) -> None:
         print("Running experiment with parameters:")
-        print(f"    label: {self.config.trainset.label}")
-        print(f"    loss: {self.config.experiment.loss}")
+        print(f"\tmodel: {self.model_type}")
+        print(f"\tlabel: {self.config.trainset.label}")
+        print(f"\tloss: {self.config.experiment.loss}")
         print(
-            f"    multisets: {'yes' if self.config.trainset.multisets else 'no'}"
+            f"\tmultisets: {'yes' if self.config.trainset.multisets else 'no'}"
         )
 
         start_time = time.time()
@@ -225,8 +222,8 @@ class Experiment:
 
         batch_counter = 0
         for batch in tqdm(self.train_set_loader):
-            x, label, mask = batch
-            train_loss = self.__train_step(x, label, mask)
+            x, label = batch
+            train_loss = self.__train_step(x, label)
             total_train_loss += train_loss
 
             step_counter = n_batches * self.epoch_counter + batch_counter
@@ -236,21 +233,50 @@ class Experiment:
         return total_train_loss / n_batches
 
     def __train_step(
-        self,
-        x: torch.FloatTensor,
-        label: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        self, x: torch.FloatTensor, label: torch.FloatTensor
     ) -> float:
         if self.use_cuda:
-            x, label, mask = x.cuda(), label.cuda(), mask.cuda()
+            x, label = x.cuda(), label.cuda()
 
         self.optimizer.zero_grad()
-        pred = self.model(x, mask)
+        pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
+        # print(f"x = {x.squeeze()}")
+        # print(f"label = {label}")
+        # print(f"pred = {pred}")
+        # print(f"loss = {the_loss}")
+
         the_loss.backward()
+
+        # norm_type = 2.0
+        # device = "cpu"
+        # total_norm = torch.norm(
+        #     torch.stack(
+        #         [
+        #             torch.norm(p.grad.detach(), norm_type).to(device)
+        #             for p in self.model.parameters()
+        #         ]
+        #     ),
+        #     norm_type,
+        # )
+        # print(f"PRE-CLIP total gradient norm: {total_norm}")
+
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 50.0)
+
+        # total_norm = torch.norm(
+        #     torch.stack(
+        #         [
+        #             torch.norm(p.grad.detach(), norm_type).to(device)
+        #             for p in self.model.parameters()
+        #         ]
+        #     ),
+        #     norm_type,
+        # )
+        # print(f"POST-CLIP total gradient norm: {total_norm}")
+
         self.optimizer.step()
 
         the_loss_tensor = the_loss.data
@@ -270,8 +296,8 @@ class Experiment:
         with torch.no_grad():
             batch_counter = 0
             for batch in tqdm(data_loader):
-                x, label, mask = batch
-                eval_loss = self.__eval_step(x, label, mask)
+                x, label = batch
+                eval_loss = self.__eval_step(x, label)
                 total_eval_loss += eval_loss
 
                 step_counter = n_batches * self.epoch_counter + batch_counter
@@ -283,15 +309,12 @@ class Experiment:
         return total_eval_loss / n_batches
 
     def __eval_step(
-        self,
-        x: torch.FloatTensor,
-        label: torch.FloatTensor,
-        mask: torch.FloatTensor,
+        self, x: torch.FloatTensor, label: torch.FloatTensor
     ) -> float:
         if self.use_cuda:
-            x, label = x.cuda(), label.cuda(), mask.cuda()
+            x, label = x.cuda(), label.cuda()
 
-        pred = self.model(x, mask)
+        pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
         pred = torch.squeeze(pred, dim=1)
         the_loss = self.loss_fn(pred, label)
