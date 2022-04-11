@@ -11,6 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from .config import Config
+from .tasks import get_task
 from .datasets import SetDataset, get_data_loader
 from .networks import count_parameters
 
@@ -54,7 +55,8 @@ class Experiment:
             weight_decay=config.experiment.weight_decay,
         )
 
-        self.loss_fn = LOSS_FNS[config.experiment.loss]
+        task = get_task(config.trainset)
+        self.loss_fn = task.loss_fn
 
         multisets_id = "multisets" if config.trainset.multisets else "sets"
         model_subdir = os.path.join(
@@ -128,7 +130,7 @@ class Experiment:
             "lr": [config.experiment.lr],
             "weight_decay": [config.experiment.weight_decay],
             "batch_size": [config.experiment.batch_size],
-            "loss": [config.experiment.loss],
+            "loss": [task.loss],
             "max_epochs": [config.experiment.max_epochs],
             "patience": [config.experiment.patience],
             "min_delta": [config.experiment.min_delta],

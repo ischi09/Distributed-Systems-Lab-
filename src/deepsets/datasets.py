@@ -1,7 +1,6 @@
-from typing import Callable, List, Tuple, Iterator
+from typing import Callable, List, Tuple, Iterator, Dict
 import random
 
-from .config import Config
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -11,7 +10,9 @@ from torch.utils.data.sampler import (
     RandomSampler,
     SubsetRandomSampler,
 )
-from functools import partial
+
+from .config import Config
+from .tasks import Task, ClassificationTask, get_task
 
 
 class SetDataset(Dataset):
@@ -22,13 +23,13 @@ class SetDataset(Dataset):
         min_value: int,
         max_value: int,
         use_multisets,
-        sample_set: Callable[[int, int, int, bool], torch.Tensor],
-        generate_label: Callable[[torch.Tensor], torch.Tensor],
+        sample_set: Callable[[int, int, int, bool], np.ndarray],
+        task: Task,
     ):
         self.n_samples = n_samples
         self.sets = []
         # Map from set size to indices in sets list that have this size.
-        self.set_distribution = {}
+        self.set_distribution: Dict[int, List[int]] = {}
 
         for i in range(n_samples):
             # Generate the actual random set.
@@ -38,7 +39,7 @@ class SetDataset(Dataset):
             rand_set_size = rand_set.shape[0]
             rand_set = torch.tensor(rand_set, dtype=torch.float)
 
-            self.sets.append((rand_set, generate_label(rand_set)))
+            self.sets.append((rand_set, task.generate_label(rand_set)))
             try:
                 self.set_distribution[rand_set_size].append(i)
             except KeyError:
@@ -46,13 +47,16 @@ class SetDataset(Dataset):
                 self.set_distribution[rand_set_size].append(i)
 
         # After processing for later evaluation
-        label_list = [label for _, label in self.sets]
-        self.label_mean = np.mean(label_list)
-        self.label_mode = float(get_mode(torch.tensor(label_list)))
-        self.label_median = float(np.median(label_list))
-        self.label_max = float(np.max(label_list))
-        self.label_min = float(np.min(label_list))
-        self.label_std = float(np.std(label_list))
+        if isinstance(task, ClassificationTask):
+            labels = [torch.argmax(label) for _, label in self.sets]
+        else:
+            labels = [label for _, label in self.sets]
+        self.label_mean = np.mean(labels)
+        self.label_mode = float(torch.tensor(labels).squeeze().mode().values)
+        self.label_median = float(np.median(labels))
+        self.label_max = float(np.max(labels))
+        self.label_min = float(np.min(labels))
+        self.label_std = float(np.std(labels))
 
         # Delta for PNA architecture.
         set_degrees = [set_.shape[0] + 1 for set_, _, in self.sets]
@@ -72,6 +76,7 @@ class BatchSetSampler(Sampler[List[int]]):
     def __init__(
         self, dataset: SetDataset, batch_size: int, generator=None
     ) -> None:
+        super().__init__(dataset)
         self.dataset = dataset
         self.batch_size = batch_size
 
@@ -119,81 +124,6 @@ class BatchSetSampler(Sampler[List[int]]):
         return n_batches
 
 
-def get_max(x: torch.Tensor) -> torch.Tensor:
-    return x.max()
-
-
-def get_mode(x: torch.Tensor) -> torch.Tensor:
-    return torch.squeeze(x).mode().values
-
-
-def get_cardinality(x: torch.Tensor) -> torch.Tensor:
-    return torch.tensor(len(x), dtype=torch.float)
-
-
-def get_sum(x: torch.Tensor) -> torch.Tensor:
-    return x.sum()
-
-
-def get_mean(x: torch.Tensor) -> torch.Tensor:
-    return x.mean()
-
-
-def get_longest_seq_length(x: torch.Tensor) -> torch.Tensor:
-    """
-    Returns length of longest sequence of consecutive numbers.
-
-    Example:
-        [2, 4, 1, 5, 7] -> 2 (because 1,2 or 4,5 are consecutive)
-    """
-    sorted_ = sorted(x.flatten().tolist())
-    max_length = 1
-    cur_length = 1
-    last_val = None
-    for val in sorted_:
-        if last_val is None:
-            last_val = val
-            continue
-
-        if last_val + 1 == val or last_val == val:
-            cur_length += 1
-
-        else:
-            max_length = max(max_length, cur_length)
-            cur_length = 1
-
-        last_val = val
-
-    max_length = max(max_length, cur_length)
-    return torch.tensor(max_length, dtype=torch.float)
-
-
-def get_largest_contiguous_sum(x: torch.Tensor) -> torch.Tensor:
-    values = x.flatten().tolist()
-    max_val = max(values)
-
-    result = max_val if max_val < 0 else sum([max(v, 0) for v in values])
-    return torch.tensor(result, dtype=torch.float)
-
-
-def get_largest_n_tuple_sum(x: torch.Tensor, n: int) -> torch.Tensor:
-    sorted_, _ = torch.sort(x, 0, descending=True)
-    return sorted_[:n].sum()
-
-
-LABEL_GENERATORS = {
-    "sum": get_sum,
-    "cardinality": get_cardinality,
-    "mode": get_mode,
-    "max": get_max,
-    "mean": get_mean,
-    "longest_seq_length": get_longest_seq_length,
-    "largest_contiguous_sum": get_largest_contiguous_sum,
-    "largest_pair_sum": partial(get_largest_n_tuple_sum, n=2),
-    "largest_triple_sum": partial(get_largest_n_tuple_sum, n=3),
-}
-
-
 def sample_integer_set(
     min_value: int, max_value: int, max_set_size: int, use_multisets: bool
 ) -> np.ndarray:
@@ -205,7 +135,7 @@ def sample_integer_set(
 
 
 def sample_longest_len_set(
-    min_value: int, max_value: int, max_set_size: int, generate_multisets: bool
+    min_value: int, max_value: int, max_set_size: int, use_multisets: bool
 ) -> np.ndarray:
     values = np.arange(min_value, max_value + 1)
     set_len = random.randint(1, max_set_size)
@@ -214,16 +144,14 @@ def sample_longest_len_set(
     sequence = values[start : start + long_len]
 
     set_shape = (set_len - long_len, 1)
-    if generate_multisets:
-        rand_vals = np.random.choice(
-            values, set_shape, replace=generate_multisets
-        )
+    if use_multisets:
+        rand_vals = np.random.choice(values, set_shape, replace=use_multisets)
     else:
         remaining_vals = np.array(
             [val for val in values if val not in sequence]
         )
         rand_vals = np.random.choice(
-            remaining_vals, set_shape, replace=generate_multisets
+            remaining_vals, set_shape, replace=use_multisets
         )
 
     final = np.concatenate((sequence[..., np.newaxis], rand_vals))
@@ -248,7 +176,7 @@ def generate_datasets(config: Config):
         max_value=train.max_value,
         use_multisets=train.multisets,
         sample_set=sample_set,
-        generate_label=LABEL_GENERATORS[train.label],
+        task=get_task(config.trainset),
     )
 
     valid_set = SetDataset(
@@ -258,7 +186,7 @@ def generate_datasets(config: Config):
         max_value=valid.max_value,
         use_multisets=valid.multisets,
         sample_set=sample_set,
-        generate_label=LABEL_GENERATORS[valid.label],
+        task=get_task(config.validset),
     )
 
     test_set = SetDataset(
@@ -268,7 +196,7 @@ def generate_datasets(config: Config):
         max_value=test.max_value,
         use_multisets=test.multisets,
         sample_set=sample_set,
-        generate_label=LABEL_GENERATORS[test.label],
+        task=get_task(config.testset),
     )
 
     return train_set, valid_set, test_set

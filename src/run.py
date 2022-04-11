@@ -2,7 +2,7 @@ import random
 import numpy as np
 import hydra
 import torch
-import sys
+
 from deepsets.config import Config
 from deepsets.datasets import generate_datasets
 from deepsets.networks import generate_model
@@ -22,7 +22,11 @@ def main(config: Config):
 
     train_set, valid_set, test_set = generate_datasets(config)
 
-    model = generate_model(config.model, delta=train_set.delta)
+    model = generate_model(
+        model_config=config.model,
+        dataset_config=config.trainset,
+        delta=train_set.delta,
+    )
 
     experiment = Experiment(
         config=config,

@@ -42,3 +42,4 @@ git clone https://github.com/juho-lee/set_transformer.git
 | Longest Contiguous Sum  | `largest_contiguous_sum` | Largest sum of the subset of the set                    | {2, 1, 4, -10, 7}&rarr;14 | {2, 1, 1, 4, -10}&rarr;8 |
 | Largest pair sum        | `largest_pair_sum`       | Largest sum of a pair of numbers in the set             | {2, 1, 4, -10, 7}&rarr;11 | {2, 1, 1, 4, -10}&rarr;6 |
 | Largest triplet sum     | `largest_triple_sum`     | Largest sum of a triplet of numbers in the set          | {2, 1, 4, -10, 7}&rarr;13 | {2, 1, 1, 4, -10}&rarr;7 |
+| Contains even number    | `contains_even`          | 1 if the set contains an even number, 0 otherwise       | {2, 1, 4, -10, 7}&rarr;1  | {3, 1, 1, 5, -9}&rarr;0  |

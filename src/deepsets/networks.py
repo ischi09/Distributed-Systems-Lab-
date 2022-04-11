@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 
 from .config import Model as ModelConfig
+from .config import Dataset as DatasetConfig
+from .tasks import ClassificationTask, get_task
 from .set_transformer.modules import SAB, PMA
 
 
@@ -21,35 +23,44 @@ ACCUMLATORS = {
 }
 
 
-def generate_model(config: ModelConfig, delta: float) -> nn.Module:
+def generate_model(
+    model_config: ModelConfig, dataset_config: DatasetConfig, delta: float
+) -> nn.Module:
+    task = get_task(dataset_config)
+
+    if isinstance(task, ClassificationTask):
+        output_dim = task.n_classes
+    else:
+        output_dim = model_config.data_dim
+
     model = None
-    if config.type == "deepsets_mlp":
+    if model_config.type == "deepsets_mlp":
         model = DeepSetsInvariant(
             phi=MLP(
-                input_dim=config.data_dim,
+                input_dim=model_config.data_dim,
                 hidden_dim=10,
-                output_dim=config.laten_dim,
+                output_dim=model_config.laten_dim,
             ),
             rho=MLP(
-                input_dim=config.laten_dim,
+                input_dim=model_config.laten_dim,
                 hidden_dim=10,
-                output_dim=config.data_dim,
+                output_dim=output_dim,
             ),
-            accumulator=ACCUMLATORS[config.accumulator],
+            accumulator=ACCUMLATORS[model_config.accumulator],
         )
-    elif config.type == "pna":
+    elif model_config.type == "pna":
         model = PNA(
-            mlp=MLP(input_dim=12, hidden_dim=10, output_dim=config.data_dim),
+            mlp=MLP(input_dim=12, hidden_dim=10, output_dim=output_dim),
             delta=delta,
         )
-    elif config.type == "sorted_mlp":
+    elif model_config.type == "sorted_mlp":
         model = SortedMLP(
             input_dim=10,
             hidden_dim=10,
-            output_dim=config.data_dim,
+            output_dim=output_dim,
         )
-    elif config.type == "small_set_transformer":
-        model = SmallSetTransformer()
+    elif model_config.type == "small_set_transformer":
+        model = SmallSetTransformer(output_dim=output_dim)
     return model
 
 
@@ -143,7 +154,7 @@ class SortedMLP(nn.Module):
 
 
 class SmallSetTransformer(nn.Module):
-    def __init__(self):
+    def __init__(self, output_dim: int):
         super().__init__()
         self.enc = nn.Sequential(
             SAB(dim_in=1, dim_out=64, num_heads=4),
@@ -151,7 +162,7 @@ class SmallSetTransformer(nn.Module):
         )
         self.dec = nn.Sequential(
             PMA(dim=64, num_heads=4, num_seeds=1),
-            nn.Linear(in_features=64, out_features=1),
+            nn.Linear(in_features=64, out_features=output_dim),
         )
 
     def forward(self, x):
