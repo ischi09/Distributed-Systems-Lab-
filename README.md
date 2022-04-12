@@ -18,6 +18,12 @@ cd src/deepsets
 git clone https://github.com/juho-lee/set_transformer.git
 ```
 
+as well as the [FSPool repository](https://github.com/Cyanogenoid/fspool):
+
+```bash
+git clone https://github.com/Cyanogenoid/fspool.git
+```
+
 # Experiment Settings
 
 ## Available Models

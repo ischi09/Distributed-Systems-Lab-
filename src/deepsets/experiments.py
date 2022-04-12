@@ -36,7 +36,10 @@ class Experiment:
             self.model.cuda()
 
         self.model_type = f"{config.model.type}"
-        if "deepsets" in config.model.type:
+        if (
+            "deepsets" in config.model.type
+            and "fspool" not in config.model.type
+        ):
             self.model_type += f"_{config.model.accumulator}"
 
         self.train_set_loader = get_data_loader(

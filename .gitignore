@@ -12,6 +12,7 @@ multirun/
 
 # External repository code
 set_transformer
+fspool
 
 ## GitHub Python Excludes ##
 

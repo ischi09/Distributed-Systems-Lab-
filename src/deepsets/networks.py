@@ -8,6 +8,7 @@ from .config import Model as ModelConfig
 from .config import Dataset as DatasetConfig
 from .tasks import ClassificationTask, get_task
 from .set_transformer.modules import SAB, PMA
+from .fspool.fspool import FSPool
 
 
 def count_parameters(model: nn.Module) -> int:
@@ -61,6 +62,23 @@ def generate_model(
         )
     elif model_config.type == "small_set_transformer":
         model = SmallSetTransformer(output_dim=output_dim)
+    elif model_config.type == "deepsets_mlp_fspool":
+        model = DeepSetsInvariantFSPool(
+            phi=MLP(
+                input_dim=model_config.data_dim,
+                hidden_dim=10,
+                output_dim=model_config.laten_dim,
+            ),
+            rho=MLP(
+                input_dim=model_config.laten_dim,
+                hidden_dim=10,
+                output_dim=output_dim,
+            ),
+            pool=FSPool(
+                in_channels=model_config.laten_dim,
+                n_pieces=10,  # TODO: should be a config parameter
+            ),
+        )
     return model
 
 
@@ -69,14 +87,14 @@ class DeepSetsInvariant(nn.Module):
         self,
         phi: nn.Module,
         rho: nn.Module,
-        accumulator: Callable[[torch.FloatTensor], torch.FloatTensor],
+        accumulator: Callable[[torch.Tensor], torch.Tensor],
     ):
         super().__init__()
         self.phi = phi
         self.rho = rho
         self.accumulator = accumulator
 
-    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.phi(x)  # x.shape = (batch_size, set_size, input_dim)
         x = self.accumulator(x)
         return self.rho(x)
@@ -89,18 +107,16 @@ class PNA(nn.Module):
         self.delta = delta
 
     def scale_amplification(
-        self, x: torch.FloatTensor, degree: int
-    ) -> torch.FloatTensor:
+        self, x: torch.Tensor, degree: int
+    ) -> torch.Tensor:
         scale = math.log(degree + 1) / self.delta
         return x * scale
 
-    def scale_attenuation(
-        self, x: torch.FloatTensor, degree: int
-    ) -> torch.FloatTensor:
+    def scale_attenuation(self, x: torch.Tensor, degree: int) -> torch.Tensor:
         scale = self.delta / math.log(degree + 1)
         return x * scale
 
-    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Aggregration
         mean = ACCUMLATORS["mean"](x)
         agg_max = ACCUMLATORS["max"](x)
@@ -132,7 +148,7 @@ class MLP(nn.Module):
             nn.Linear(hidden_dim, output_dim),
         )
 
-    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
 
@@ -147,7 +163,7 @@ class SortedMLP(nn.Module):
             nn.Linear(hidden_dim, output_dim),
         )
 
-    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x, _ = torch.sort(x, dim=1)
         x = x.squeeze(dim=-1)
         return self.layers(x)
@@ -169,3 +185,24 @@ class SmallSetTransformer(nn.Module):
         x = self.enc(x)
         x = self.dec(x)
         return x.squeeze(dim=-1)
+
+
+class DeepSetsInvariantFSPool(nn.Module):
+    def __init__(
+        self,
+        phi: nn.Module,
+        rho: nn.Module,
+        pool: FSPool,
+    ):
+        super().__init__()
+        self.phi = phi
+        self.rho = rho
+        self.pool = pool
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.phi(x)  # x.shape = (batch_size, set_size, input_dim)
+        # x.shape = (batch_size, latent_dim, set_size), as FSPool requires
+        # set_dim last.
+        x = torch.permute(x, (0, 2, 1))
+        x, _ = self.pool(x)
+        return self.rho(x)
