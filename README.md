@@ -34,6 +34,7 @@ git clone https://github.com/Cyanogenoid/fspool.git
 | [Principal Neighbourhood Aggregation](https://papers.nips.cc/paper/2020/file/99cad265a1768cc2dd013f0e740300ae-Paper.pdf) | `pna`                   |
 | [Small Set Transformer](https://proceedings.mlr.press/v97/lee19d.html)                                                   | `small_set_transformer` |
 | Sorted MLP                                                                                                               | `sorted_mlp`            |
+| [DeepSets with MLP and FSPool](https://arxiv.org/abs/1906.02795)                                                         | `deepsets_mlp_fspool`   |
 
 ## Available Labels (Tasks)
 
