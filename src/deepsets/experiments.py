@@ -63,10 +63,10 @@ class Experiment:
 
         self.loss_fn = LOSS_FNS[config.experiment.loss]
 
-        multisets_id = "multisets" if config.trainset.multisets else "sets"
+        multisets_id = "multisets" if config.set_vals.multisets else "sets"
         model_subdir = os.path.join(
             self.model_type,
-            f"{config.trainset.label}-{multisets_id}",
+            f"{config.set_vals.label}-{multisets_id}",
             f"lr:{config.experiment.lr}-wd:{config.experiment.weight_decay}",
         )
         log_dir = os.path.join(config.paths.log, model_subdir)
@@ -83,11 +83,11 @@ class Experiment:
 
         train_set_info = {
             "train_n_samples": [config.trainset.n_samples],
-            "train_max_set_size": [config.trainset.max_set_size],
-            "train_min_value": [config.trainset.min_value],
-            "train_max_value": [config.trainset.max_value],
-            "train_label": [config.trainset.label],
-            "train_multisets": [config.trainset.multisets],
+            "train_max_set_size": [config.set_vals.max_set_size],
+            "train_min_value": [config.set_vals.min_value],
+            "train_max_value": [config.set_vals.max_value],
+            "train_label": [config.set_vals.label],
+            "train_multisets": [config.set_vals.multisets],
             "train_label_mean": [train_set.get_label_mean()],
             "train_label_std": [train_set.get_label_std()],
             "train_label_min": [train_set.get_label_min()],
@@ -99,11 +99,11 @@ class Experiment:
 
         valid_set_info = {
             "valid_n_samples": [config.validset.n_samples],
-            "valid_max_set_size": [config.validset.max_set_size],
-            "valid_min_value": [config.validset.min_value],
-            "valid_max_value": [config.validset.max_value],
-            "valid_label": [config.validset.label],
-            "valid_multisets": [config.validset.multisets],
+            "valid_max_set_size": [config.set_vals.max_set_size],
+            "valid_min_value": [config.set_vals.min_value],
+            "valid_max_value": [config.set_vals.max_value],
+            "valid_label": [config.set_vals.label],
+            "valid_multisets": [config.set_vals.multisets],
             "valid_label_mean": [valid_set.get_label_mean()],
             "valid_label_std": [valid_set.get_label_std()],
             "valid_label_min": [valid_set.get_label_min()],
@@ -115,11 +115,11 @@ class Experiment:
 
         test_set_info = {
             "test_n_samples": [config.testset.n_samples],
-            "test_max_set_size": [config.testset.max_set_size],
-            "test_min_value": [config.testset.min_value],
-            "test_max_value": [config.testset.max_value],
-            "test_label": [config.testset.label],
-            "test_multisets": [config.testset.multisets],
+            "test_max_set_size": [config.set_vals.max_set_size],
+            "test_min_value": [config.set_vals.min_value],
+            "test_max_value": [config.set_vals.max_value],
+            "test_label": [config.set_vals.label],
+            "test_multisets": [config.set_vals.multisets],
             "test_label_mean": [test_set.get_label_mean()],
             "test_label_std": [test_set.get_label_std()],
             "test_label_min": [test_set.get_label_min()],
@@ -151,10 +151,10 @@ class Experiment:
 
     def run(self) -> None:
         print("Running experiment with parameters:")
-        print(f"    label: {self.config.trainset.label}")
+        print(f"    label: {self.config.set_vals.label}")
         print(f"    loss: {self.config.experiment.loss}")
         print(
-            f"    multisets: {'yes' if self.config.trainset.multisets else 'no'}"
+            f"    multisets: {'yes' if self.config.set_vals.multisets else 'no'}"
         )
 
         start_time = time.time()

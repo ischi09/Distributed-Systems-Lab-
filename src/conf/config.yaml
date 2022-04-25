@@ -14,31 +14,23 @@ experiment:
   weight_decay: 5e-3
 
 model:
-  type: deepsets_mlp 
+  type: deepsets_mlp
   data_dim: 1
   laten_dim: 10
   accumulator: sum
 
+set_vals:
+  max_set_size: 10
+  min_value: 0
+  max_value: 10
+  label: max # Independent of accumulator
+  multisets: True
+
 trainset:
   n_samples: 10000
-  max_set_size: 10
-  min_value: -10
-  max_value: 10
-  label: largest_contiguous_sum # Independent of accumulator
-  multisets: True 
 
 validset:
   n_samples: 1000
-  max_set_size: 10
-  min_value: -10
-  max_value: 10
-  label: largest_contiguous_sum # Independent of accumulator
-  multisets: True 
 
 testset:
   n_samples: 1000
-  max_set_size: 10
-  min_value: -10
-  max_value: 10
-  label: largest_contiguous_sum # Independent of accumulator
-  multisets: True 

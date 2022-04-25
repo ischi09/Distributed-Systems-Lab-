@@ -29,12 +29,15 @@ class Model:
 
 @dataclass
 class Dataset:
-    n_samples: int
     max_set_size: int
     min_value: int
     max_value: int
     label: str
     multisets: bool
+
+@dataclass
+class Sizeset:
+    n_samples: int
 
 
 @dataclass
@@ -42,6 +45,7 @@ class Config:
     paths: Paths
     experiment: Experiment
     model: Model
-    trainset: Dataset
-    validset: Dataset
-    testset: Dataset
+    set_vals: Dataset
+    trainset: Sizeset
+    validset: Sizeset
+    testset: Sizeset

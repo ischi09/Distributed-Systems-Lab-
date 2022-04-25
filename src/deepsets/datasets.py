@@ -84,33 +84,34 @@ LABEL_GENERATORS = {
 
 
 def generate_datasets(cfg: Config):
+    set_vals = cfg.set_vals
     train = cfg.trainset
     valid = cfg.validset
     test = cfg.testset
 
     train_set = SetDataset(
         train.n_samples,
-        train.max_set_size,
-        train.min_value,
-        train.max_value,
-        LABEL_GENERATORS[train.label],
-        train.multisets,
+        set_vals.max_set_size,
+        set_vals.min_value,
+        set_vals.max_set_size,
+        LABEL_GENERATORS[set_vals.label],
+        set_vals.multisets,
     )
     valid_set = SetDataset(
         valid.n_samples,
-        valid.max_set_size,
-        valid.min_value,
-        valid.max_value,
-        LABEL_GENERATORS[valid.label],
-        valid.multisets,
+        set_vals.max_set_size,
+        set_vals.min_value,
+        set_vals.max_set_size,
+        LABEL_GENERATORS[set_vals.label],
+        set_vals.multisets,
     )
     test_set = SetDataset(
         test.n_samples,
-        test.max_set_size,
-        test.min_value,
-        test.max_value,
-        LABEL_GENERATORS[test.label],
-        test.multisets,
+        set_vals.max_set_size,
+        set_vals.min_value,
+        set_vals.max_set_size,
+        LABEL_GENERATORS[set_vals.label],
+        set_vals.multisets,
     )
 
     return train_set, valid_set, test_set

@@ -80,9 +80,7 @@ def generate_model(config: ModelConfig, delta: float) -> nn.Module:
         )
     elif config.type == "sorted_mlp":
         model = SortedMLP(
-            input_dim=10,
-            hidden_dim=10,
-            output_dim=config.data_dim,
+            input_dim=10, hidden_dim=10, output_dim=config.data_dim,
         )
     elif config.type == "small_set_transformer":
         model = SmallSetTransformer()
@@ -121,12 +119,18 @@ class PNA(nn.Module):
         self, x: torch.FloatTensor, mask: torch.FloatTensor
     ) -> torch.FloatTensor:
         scale = torch.log(mask.sum(dim=1) + 1) / self.delta
+
+        print(f"Amplification: {scale}")
+        print(f"Delta: {self.delta}")
+        print(f"Set size : {mask.sum(dim=1)}")
         return x * scale
 
     def scale_attenuation(
         self, x: torch.FloatTensor, mask: torch.FloatTensor
     ) -> torch.FloatTensor:
         scale = self.delta / torch.log(mask.sum(dim=1) + 1)
+
+        print(f"Attenuation: {scale}")
         return torch.mul(x, scale)
 
     def forward(
