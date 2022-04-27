@@ -240,15 +240,15 @@ class Experiment:
         n_batches = len(self.train_set_loader)
         total_train_loss = 0.0
 
-        batch_counter = 0
+        self.batch_counter = 0
         for batch in tqdm(self.train_set_loader):
             x, label = batch
             train_loss = self._train_step(x, label)
             total_train_loss += train_loss
 
-            step_counter = n_batches * self.epoch_counter + batch_counter
+            step_counter = n_batches * self.epoch_counter + self.batch_counter
             self.summary_writer.add_scalar(loss_id, train_loss, step_counter)
-            batch_counter += 1
+            self.batch_counter += 1
 
         return total_train_loss / n_batches
 
@@ -256,7 +256,10 @@ class Experiment:
         if self.use_cuda:
             x, label = x.cuda(), label.cuda()
 
-        self.optimizer.zero_grad()
+        if self.batch_counter == 0:
+            self.optimizer.zero_grad()
+        if self.batch_counter % 20 == 0:
+            self.optimizer.zero_grad()
         pred = self.model(x)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
