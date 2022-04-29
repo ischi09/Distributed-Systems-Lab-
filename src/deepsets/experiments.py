@@ -43,13 +43,19 @@ class Experiment:
             self.model_type += f"_{config.model.accumulator}"
 
         self.train_set_loader = get_data_loader(
-            train_set, config.experiment.batch_size
+            dataset=train_set,
+            batch_size=config.experiment.batch_size,
+            use_batch_sampler=config.experiment.use_batch_sampler,
         )
         self.valid_set_loader = get_data_loader(
-            valid_set, config.experiment.batch_size
+            dataset=valid_set,
+            batch_size=config.experiment.batch_size,
+            use_batch_sampler=config.experiment.use_batch_sampler,
         )
         self.test_set_loader = get_data_loader(
-            test_set, config.experiment.batch_size
+            dataset=test_set,
+            batch_size=config.experiment.batch_size,
+            use_batch_sampler=config.experiment.use_batch_sampler,
         )
 
         self.optimizer = optim.Adam(
@@ -242,8 +248,8 @@ class Experiment:
 
         batch_counter = 0
         for batch in tqdm(self.train_set_loader):
-            x, label = batch
-            train_loss = self._train_step(x, label)
+            x, mask, label = batch
+            train_loss = self._train_step(x, mask, label)
             total_train_loss += train_loss
 
             step_counter = n_batches * self.epoch_counter + batch_counter
@@ -252,48 +258,23 @@ class Experiment:
 
         return total_train_loss / n_batches
 
-    def _train_step(self, x: torch.Tensor, label: torch.Tensor) -> float:
+    def _train_step(
+        self, x: torch.Tensor, mask: torch.Tensor, label: torch.Tensor
+    ) -> float:
         if self.use_cuda:
-            x, label = x.cuda(), label.cuda()
+            x, mask, label = x.cuda(), mask.cuda(), label.cuda()
 
         self.optimizer.zero_grad()
-        pred = self.model(x)
+        pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
-        # print(f"x = {x.squeeze()}")
-        # print(f"label = {label}")
-        # print(f"pred = {pred}")
-        # print(f"loss = {the_loss}")
-
         the_loss.backward()
 
-        # norm_type = 2.0
-        # device = "cpu"
-        # total_norm = torch.norm(
-        #     torch.stack(
-        #         [
-        #             torch.norm(p.grad.detach(), norm_type).to(device)
-        #             for p in self.model.parameters()
-        #         ]
-        #     ),
-        #     norm_type,
-        # )
-        # print(f"PRE-CLIP total gradient norm: {total_norm}")
-
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 50.0)
-
-        # total_norm = torch.norm(
-        #     torch.stack(
-        #         [
-        #             torch.norm(p.grad.detach(), norm_type).to(device)
-        #             for p in self.model.parameters()
-        #         ]
-        #     ),
-        #     norm_type,
-        # )
-        # print(f"POST-CLIP total gradient norm: {total_norm}")
+        torch.nn.utils.clip_grad_norm_(
+            self.model.parameters(), self.config.experiment.grad_norm_threshold
+        )
 
         self.optimizer.step()
 
@@ -314,8 +295,8 @@ class Experiment:
         with torch.no_grad():
             batch_counter = 0
             for batch in tqdm(data_loader):
-                x, label = batch
-                eval_loss = self._eval_step(x, label)
+                x, mask, label = batch
+                eval_loss = self._eval_step(x, mask, label)
                 total_eval_loss += eval_loss
 
                 step_counter = n_batches * self.epoch_counter + batch_counter
@@ -326,11 +307,13 @@ class Experiment:
 
         return total_eval_loss / n_batches
 
-    def _eval_step(self, x: torch.Tensor, label: torch.Tensor) -> float:
+    def _eval_step(
+        self, x: torch.Tensor, mask: torch.Tensor, label: torch.Tensor
+    ) -> float:
         if self.use_cuda:
             x, label = x.cuda(), label.cuda()
 
-        pred = self.model(x)
+        pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)

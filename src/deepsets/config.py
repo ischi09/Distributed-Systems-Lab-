@@ -18,6 +18,8 @@ class Experiment:
     random_seed: int
     loss: str
     weight_decay: float
+    grad_norm_threshold: float
+    use_batch_sampler: bool
 
 
 @dataclass

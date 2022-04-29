@@ -21,13 +21,18 @@ class Task:
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
+    def padding_element(self) -> int:
+        """
+        Return element to be used as set padding.
+
+        Note: This element ideally should *not* change the label of the set.
+        """
+        raise NotImplementedError
+
 
 class RegressionTask(Task):
     def __init__(self, label: str) -> None:
         super().__init__(label=label, loss="mse", loss_fn=F.mse_loss)
-
-    def generate_label(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
 
 
 class ClassificationTask(Task):
@@ -36,9 +41,6 @@ class ClassificationTask(Task):
 
         self.n_classes = n_classes
 
-    def generate_label(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
-
 
 class MaxTask(RegressionTask):
     def __init__(self) -> None:
@@ -46,6 +48,11 @@ class MaxTask(RegressionTask):
 
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return x.max()
+
+    # TODO: Fix and make it dependent on the task configuration. Should be
+    # min. possible element, maybe minus 1.
+    def padding_element(self) -> int:
+        return -1
 
 
 class ModeTask(ClassificationTask):
@@ -58,6 +65,11 @@ class ModeTask(ClassificationTask):
         label[mode] = 1.0
         return label
 
+    # TODO: Fix and make it dependent on the task configuration. Should be
+    # random element outside of possible elements.
+    def padding_element(self) -> int:
+        return -1
+
 
 class CardinalityTask(RegressionTask):
     def __init__(self) -> None:
@@ -65,6 +77,9 @@ class CardinalityTask(RegressionTask):
 
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return torch.tensor(len(x), dtype=torch.float)
+
+    def padding_element(self) -> int:
+        return 0
 
 
 class SumTask(RegressionTask):
@@ -74,6 +89,9 @@ class SumTask(RegressionTask):
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return x.sum()
 
+    def padding_element(self) -> int:
+        return 0
+
 
 class MeanTask(RegressionTask):
     def __init__(self) -> None:
@@ -81,6 +99,9 @@ class MeanTask(RegressionTask):
 
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return x.mean()
+
+    def padding_element(self) -> int:
+        return 0
 
 
 class LongestSeqLenTask(RegressionTask):
@@ -115,6 +136,11 @@ class LongestSeqLenTask(RegressionTask):
         max_length = max(max_length, cur_length)
         return torch.tensor(max_length, dtype=torch.float)
 
+    # TODO: Fix and make it dependent on the task configuration. Should be
+    # random element outside of possible elements.
+    def padding_element(self) -> int:
+        return -1
+
 
 class LargestContiguousSumTask(RegressionTask):
     def __init__(self) -> None:
@@ -126,6 +152,9 @@ class LargestContiguousSumTask(RegressionTask):
 
         result = max_val if max_val < 0 else sum([max(v, 0) for v in values])
         return torch.tensor(result, dtype=torch.float)
+
+    def padding_element(self) -> int:
+        return -1
 
 
 class LargestNTupleSumTask(RegressionTask):
@@ -145,6 +174,11 @@ class LargestNTupleSumTask(RegressionTask):
         sorted_, _ = torch.sort(x, 0, descending=True)
         return sorted_[: self.n].sum()
 
+    # TODO: Fix and make it dependent on the task configuration. Should be
+    # min. possible element, maybe minus 1.
+    def padding_element(self) -> int:
+        return -1
+
 
 class ContainsEvenTask(ClassificationTask):
     def __init__(self) -> None:
@@ -155,6 +189,9 @@ class ContainsEvenTask(ClassificationTask):
         contains_even = any([v % 2 == 0 for v in values])
         label = [0, 1] if contains_even else [1, 0]
         return torch.tensor(label, dtype=torch.float)
+
+    def padding_element(self) -> int:
+        return 1
 
 
 def get_task(config: DatasetConfig) -> Task:

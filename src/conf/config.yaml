@@ -13,9 +13,11 @@ experiment:
   random_seed: 99
   loss: mse
   weight_decay: 5e-3
+  grad_norm_threshold: 50.0
+  use_batch_sampler: False
 
 model:
-  type: deepsets_mlp
+  type: deepsets_mlp_fspool
   data_dim: 1
   laten_dim: 10
   accumulator: sum

@@ -37,9 +37,31 @@ class SetDataset(Dataset):
                 min_value, max_value, max_set_size, use_multisets
             )
             rand_set_size = rand_set.shape[0]
-            rand_set = torch.tensor(rand_set, dtype=torch.float)
 
-            self.sets.append((rand_set, task.generate_label(rand_set)))
+            # Generate the padding to the maximum size.
+            padding_len = max_set_size - rand_set_size
+            padding = np.repeat(task.padding_element(), padding_len)
+            padding = padding[:, np.newaxis]
+
+            # Generate padded random set and padding mask.
+            padded_rand_set = np.vstack((rand_set, padding))
+            mask = np.vstack(
+                (
+                    np.ones(rand_set.shape, dtype=np.int),
+                    np.zeros(padding.shape, dtype=np.int),
+                )
+            )
+
+            def to_tensor(x: np.ndarray) -> torch.FloatTensor:
+                return torch.tensor(x, dtype=torch.float)
+
+            rand_set = to_tensor(rand_set)
+            padded_rand_set = to_tensor(padded_rand_set)
+            mask = to_tensor(mask)
+
+            self.sets.append(
+                (padded_rand_set, mask, task.generate_label(rand_set))
+            )
             try:
                 self.set_distribution[rand_set_size].append(i)
             except KeyError:
@@ -48,9 +70,9 @@ class SetDataset(Dataset):
 
         # After processing for later evaluation
         if isinstance(task, ClassificationTask):
-            labels = [torch.argmax(label) for _, label in self.sets]
+            labels = [torch.argmax(label) for _, _, label in self.sets]
         else:
-            labels = [label for _, label in self.sets]
+            labels = [label for _, _, label in self.sets]
         self.label_mean = np.mean(labels)
         self.label_mode = float(torch.tensor(labels).squeeze().mode().values)
         self.label_median = float(np.median(labels))
@@ -59,7 +81,7 @@ class SetDataset(Dataset):
         self.label_std = float(np.std(labels))
 
         # Delta for PNA architecture.
-        set_degrees = [set_.shape[0] + 1 for set_, _, in self.sets]
+        set_degrees = [mask.sum() + 1 for _, mask, _, in self.sets]
         log_set_degrees = np.log(set_degrees)
         self.delta = float(np.mean(log_set_degrees))
 
@@ -202,6 +224,14 @@ def generate_datasets(config: Config):
     return train_set, valid_set, test_set
 
 
-def get_data_loader(dataset: SetDataset, batch_size: int) -> DataLoader:
-    batch_sampler = BatchSetSampler(dataset, batch_size)
-    return DataLoader(dataset=dataset, batch_sampler=batch_sampler)
+def get_data_loader(
+    dataset: SetDataset, batch_size: int, use_batch_sampler: bool
+) -> DataLoader:
+    if use_batch_sampler:
+        batch_sampler = BatchSetSampler(dataset, batch_size)
+        data_loader = DataLoader(dataset=dataset, batch_sampler=batch_sampler)
+    else:
+        data_loader = DataLoader(
+            dataset=dataset, batch_size=batch_size, shuffle=True
+        )
+    return data_loader
