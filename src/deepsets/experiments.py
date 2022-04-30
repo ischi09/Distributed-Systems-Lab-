@@ -11,7 +11,6 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
-from zmq import device
 
 from .config import Config
 from .tasks import get_task
