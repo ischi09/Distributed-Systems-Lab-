@@ -16,10 +16,10 @@ class Experiment:
     lr: float
     batch_size: int
     random_seed: int
-    loss: str
     weight_decay: float
     grad_norm_threshold: float
     use_batch_sampler: bool
+    use_gpu: bool
 
 
 @dataclass
@@ -27,12 +27,10 @@ class Model:
     type: str
     data_dim: int
     laten_dim: int
-    accumulator: str
 
 
 @dataclass
-class Dataset:
-    n_samples: int
+class Task:
     max_set_size: int
     min_value: int
     max_value: int
@@ -41,10 +39,16 @@ class Dataset:
 
 
 @dataclass
+class Datasets:
+    train_samples: int
+    valid_samples: int
+    test_samples: int
+
+
+@dataclass
 class Config:
     paths: Paths
     experiment: Experiment
     model: Model
-    trainset: Dataset
-    validset: Dataset
-    testset: Dataset
+    task: Task
+    datasets: Datasets

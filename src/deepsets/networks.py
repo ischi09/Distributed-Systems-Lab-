@@ -3,8 +3,7 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from .config import Model as ModelConfig
-from .config import Dataset as DatasetConfig
+from .config import Config
 from .tasks import ClassificationTask, get_task
 from .set_transformer.modules import SAB, PMA
 from .fspool.fspool import FSPool
@@ -50,10 +49,9 @@ ACCUMLATORS = {
 }
 
 
-def generate_model(
-    model_config: ModelConfig, dataset_config: DatasetConfig, delta: float
-) -> nn.Module:
-    task = get_task(dataset_config)
+def generate_model(config: Config, delta: float) -> nn.Module:
+    model_config = config.model
+    task = get_task(config.task)
 
     if isinstance(task, ClassificationTask):
         output_dim = task.n_classes
@@ -61,22 +59,41 @@ def generate_model(
         output_dim = model_config.data_dim
 
     model = None
-    if model_config.type == "deepsets_mlp":
-        model = DeepSetsInvariant(
-            phi=InternalMLP(
-                input_dim=model_config.data_dim,
-                hidden_dim=10,
-                output_dim=model_config.laten_dim,
-            ),
-            rho=InternalMLP(
-                input_dim=model_config.laten_dim,
-                hidden_dim=10,
-                output_dim=output_dim,
-            ),
-            accumulator=ACCUMLATORS[model_config.accumulator],
-        )
+    if "deepsets_mlp" in model_config.type:
+        accumulator = model_config.type.split("_")[-1]
+        if accumulator in ACCUMLATORS.keys():
+            model = DeepSetsInvariant(
+                phi=InternalMLP(
+                    input_dim=model_config.data_dim,
+                    hidden_dim=10,
+                    output_dim=model_config.laten_dim,
+                ),
+                rho=InternalMLP(
+                    input_dim=model_config.laten_dim,
+                    hidden_dim=10,
+                    output_dim=output_dim,
+                ),
+                accumulator=ACCUMLATORS[accumulator],
+            )
+        elif accumulator == "fspool":
+            model = DeepSetsInvariantFSPool(
+                phi=InternalMLP(
+                    input_dim=model_config.data_dim,
+                    hidden_dim=10,
+                    output_dim=model_config.laten_dim,
+                ),
+                rho=InternalMLP(
+                    input_dim=model_config.laten_dim,
+                    hidden_dim=10,
+                    output_dim=output_dim,
+                ),
+                pool=FSPool(
+                    in_channels=model_config.laten_dim,
+                    n_pieces=10,  # TODO: should be a config parameter
+                ),
+            )
     elif model_config.type == "pna":
-        model = PNA(
+        model = Pna(
             mlp=InternalMLP(
                 input_dim=12, hidden_dim=10, output_dim=output_dim
             ),
@@ -96,23 +113,6 @@ def generate_model(
         )
     elif model_config.type == "small_set_transformer":
         model = SmallSetTransformer(output_dim=output_dim)
-    elif model_config.type == "deepsets_mlp_fspool":
-        model = DeepSetsInvariantFSPool(
-            phi=InternalMLP(
-                input_dim=model_config.data_dim,
-                hidden_dim=10,
-                output_dim=model_config.laten_dim,
-            ),
-            rho=InternalMLP(
-                input_dim=model_config.laten_dim,
-                hidden_dim=10,
-                output_dim=output_dim,
-            ),
-            pool=FSPool(
-                in_channels=model_config.laten_dim,
-                n_pieces=10,  # TODO: should be a config parameter
-            ),
-        )
     return model
 
 
@@ -177,7 +177,7 @@ class SortedMLP(nn.Module):
         return self.mlp(x)
 
 
-class PNA(nn.Module):
+class Pna(nn.Module):
     def __init__(self, mlp: nn.Module, delta: float):
         super().__init__()
         self.mlp = mlp

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from .config import Dataset as DatasetConfig
+from .config import Task as TaskConfig
 
 
 class Task:
@@ -194,7 +194,7 @@ class ContainsEvenTask(ClassificationTask):
         return 1
 
 
-def get_task(config: DatasetConfig) -> Task:
+def get_task(config: TaskConfig) -> Task:
     n_classes = len(np.arange(config.min_value, config.max_value + 1))
 
     tasks = {

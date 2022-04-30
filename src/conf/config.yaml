@@ -1,8 +1,7 @@
 paths:
   log: ${hydra:runtime.cwd}/log
- # data: ./dataset
   models: ${hydra:runtime.cwd}/models
-  results: ${hydra:runtime.cwd}/results/results.csv
+  results: ${hydra:runtime.cwd}/results
 
 experiment:
   max_epochs: 200
@@ -11,37 +10,24 @@ experiment:
   lr: 0.001
   batch_size: 64
   random_seed: 99
-  loss: mse
   weight_decay: 5e-3
   grad_norm_threshold: 50.0
   use_batch_sampler: False
+  use_gpu: False
 
 model:
-  type: deepsets_mlp_fspool
+  type: deepsets_mlp_sum
   data_dim: 1
   laten_dim: 10
-  accumulator: sum
 
-trainset:
-  n_samples: 10000
+task:
   max_set_size: 10
   min_value: 0
   max_value: 10
-  label: sum # Independent of accumulator
-  multisets: True 
+  label: sum
+  multisets: True
 
-validset:
-  n_samples: 1000
-  max_set_size: 10
-  min_value: 0
-  max_value: 10
-  label: sum # Independent of accumulator
-  multisets: True 
-
-testset:
-  n_samples: 1000
-  max_set_size: 10
-  min_value: 0
-  max_value: 10
-  label: sum # Independent of accumulator
-  multisets: True 
+datasets:
+  train_samples: 10000
+  valid_samples: 1000
+  test_samples: 1000

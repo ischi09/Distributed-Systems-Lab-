@@ -52,7 +52,7 @@ class SetDataset(Dataset):
                 )
             )
 
-            def to_tensor(x: np.ndarray) -> torch.FloatTensor:
+            def to_tensor(x: np.ndarray) -> torch.Tensor:
                 return torch.tensor(x, dtype=torch.float)
 
             rand_set = to_tensor(rand_set)
@@ -182,43 +182,41 @@ def sample_longest_len_set(
 
 
 def generate_datasets(config: Config):
-    train = config.trainset
-    valid = config.validset
-    test = config.testset
-
-    if config.trainset.label == "longest_seq_length":
+    if config.task.label == "longest_seq_length":
         sample_set = sample_longest_len_set
     else:
         sample_set = sample_integer_set
 
+    task = get_task(config.task)
+
     train_set = SetDataset(
-        n_samples=train.n_samples,
-        max_set_size=train.max_set_size,
-        min_value=train.min_value,
-        max_value=train.max_value,
-        use_multisets=train.multisets,
+        n_samples=config.datasets.train_samples,
+        max_set_size=config.task.max_set_size,
+        min_value=config.task.min_value,
+        max_value=config.task.max_value,
+        use_multisets=config.task.multisets,
         sample_set=sample_set,
-        task=get_task(config.trainset),
+        task=task,
     )
 
     valid_set = SetDataset(
-        n_samples=valid.n_samples,
-        max_set_size=valid.max_set_size,
-        min_value=valid.min_value,
-        max_value=valid.max_value,
-        use_multisets=valid.multisets,
+        n_samples=config.datasets.valid_samples,
+        max_set_size=config.task.max_set_size,
+        min_value=config.task.min_value,
+        max_value=config.task.max_value,
+        use_multisets=config.task.multisets,
         sample_set=sample_set,
-        task=get_task(config.validset),
+        task=task,
     )
 
     test_set = SetDataset(
-        n_samples=test.n_samples,
-        max_set_size=test.max_set_size,
-        min_value=test.min_value,
-        max_value=test.max_value,
-        use_multisets=test.multisets,
+        n_samples=config.datasets.test_samples,
+        max_set_size=config.task.max_set_size,
+        min_value=config.task.min_value,
+        max_value=config.task.max_value,
+        use_multisets=config.task.multisets,
         sample_set=sample_set,
-        task=get_task(config.testset),
+        task=task,
     )
 
     return train_set, valid_set, test_set

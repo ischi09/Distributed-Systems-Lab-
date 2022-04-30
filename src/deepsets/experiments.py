@@ -2,6 +2,8 @@ import os
 import time
 import pandas as pd
 
+from typing import Any, List, Dict
+
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
@@ -9,6 +11,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
+from zmq import device
 
 from .config import Config
 from .tasks import get_task
@@ -27,20 +30,13 @@ class Experiment:
         valid_set: SetDataset,
         test_set: SetDataset,
     ):
-        self.use_cuda = torch.cuda.is_available()
+        self.device = torch.device(
+            "cuda" if config.experiment.use_gpu else "cpu"
+        )
         self.epoch_counter = 0
         self.config = config
 
-        self.model = model
-        if self.use_cuda:
-            self.model.cuda()
-
-        self.model_type = f"{config.model.type}"
-        if (
-            "deepsets" in config.model.type
-            and "fspool" not in config.model.type
-        ):
-            self.model_type += f"_{config.model.accumulator}"
+        self.model = model.to(self.device)
 
         self.train_set_loader = get_data_loader(
             dataset=train_set,
@@ -64,13 +60,13 @@ class Experiment:
             weight_decay=config.experiment.weight_decay,
         )
 
-        task = get_task(config.trainset)
+        task = get_task(config.task)
         self.loss_fn = task.loss_fn
 
-        multisets_id = "multisets" if config.trainset.multisets else "sets"
+        multisets_id = "multisets" if config.task.multisets else "sets"
         model_subdir = os.path.join(
-            self.model_type,
-            f"{config.trainset.label}-{multisets_id}",
+            config.model.type,
+            f"{config.task.label}-{multisets_id}",
             f"lr:{config.experiment.lr}-"
             + f"wd:{config.experiment.weight_decay}-"
             + f"{config.experiment.batch_size}",
@@ -82,100 +78,60 @@ class Experiment:
         os.makedirs(model_dir, exist_ok=True)
         self.best_model_filename = os.path.join(model_dir, "best_model.pth")
 
-        model_info = {
-            "model": [self.model_type],
-            "n_params": [count_parameters(self.model)],
-        }
+        def to_list_dict(d: Dict[str, Any]) -> Dict[str, List[Any]]:
+            return {k: [v] for k, v in d.items()}
 
-        train_set_info = {
-            "train_n_samples": [config.trainset.n_samples],
-            "train_max_set_size": [config.trainset.max_set_size],
-            "train_min_value": [config.trainset.min_value],
-            "train_max_value": [config.trainset.max_value],
-            "train_label": [config.trainset.label],
-            "train_multisets": [config.trainset.multisets],
-            "train_label_mean": [train_set.label_mean],
-            "train_label_std": [train_set.label_std],
-            "train_label_min": [train_set.label_min],
-            "train_label_max": [train_set.label_max],
-            "train_label_median": [train_set.label_median],
-            "train_label_mode": [train_set.label_mode],
-            "train_delta": [train_set.delta],
-        }
+        model_info = config.model._content
+        model_info["n_params"] = count_parameters(self.model)
 
-        valid_set_info = {
-            "valid_n_samples": [config.validset.n_samples],
-            "valid_max_set_size": [config.validset.max_set_size],
-            "valid_min_value": [config.validset.min_value],
-            "valid_max_value": [config.validset.max_value],
-            "valid_label": [config.validset.label],
-            "valid_multisets": [config.validset.multisets],
-            "valid_label_mean": [valid_set.label_mean],
-            "valid_label_std": [valid_set.label_std],
-            "valid_label_min": [valid_set.label_min],
-            "valid_label_max": [valid_set.label_max],
-            "valid_label_median": [valid_set.label_median],
-            "valid_label_mode": [valid_set.label_mode],
-            "valid_delta": [valid_set.delta],
-        }
+        task_info = config.task._content
 
-        test_set_info = {
-            "test_n_samples": [config.testset.n_samples],
-            "test_max_set_size": [config.testset.max_set_size],
-            "test_min_value": [config.testset.min_value],
-            "test_max_value": [config.testset.max_value],
-            "test_label": [config.testset.label],
-            "test_multisets": [config.testset.multisets],
-            "test_label_mean": [test_set.label_mean],
-            "test_label_std": [test_set.label_std],
-            "test_label_min": [test_set.label_min],
-            "test_label_max": [test_set.label_max],
-            "test_label_median": [test_set.label_median],
-            "test_label_mode": [test_set.label_mode],
-            "test_delta": [test_set.delta],
-        }
+        datasets_info = config.datasets._content
 
-        experiment_info = {
-            "lr": [config.experiment.lr],
-            "weight_decay": [config.experiment.weight_decay],
-            "batch_size": [config.experiment.batch_size],
-            "loss": [task.loss],
-            "max_epochs": [config.experiment.max_epochs],
-            "patience": [config.experiment.patience],
-            "min_delta": [config.experiment.min_delta],
-            "random_seed": [config.experiment.random_seed],
-        }
+        def dataset_stats_dict(
+            dataset: SetDataset, kind: str
+        ) -> Dict[str, Any]:
+            return {
+                f"{kind}_label_mean": dataset.label_mean,
+                f"{kind}_label_std": dataset.label_std,
+                f"{kind}_label_min": dataset.label_min,
+                f"{kind}_label_max": dataset.label_max,
+                f"{kind}_label_median": dataset.label_median,
+                f"{kind}_label_mode": dataset.label_mode,
+                f"{kind}_delta": dataset.delta,
+            }
+
+        train_set_info = dataset_stats_dict(train_set, "train")
+        valid_set_info = dataset_stats_dict(valid_set, "valid")
+        test_set_info = dataset_stats_dict(test_set, "test")
+
+        experiment_info = config.experiment._content
+        experiment_info["loss"] = task.loss
 
         print("*** Experiment Setup ***\n")
 
-        print("Training set:")
-        for key, value in train_set_info.items():
-            print(f"\t{key[6:]}: {value[0]}")
+        def print_info(heading: str, d: Dict[str, Any]) -> None:
+            print(f"{heading}:")
+            for k, v in d.items():
+                print(" " * 4 + f"{k}: {v}")
+            print("")
 
-        print("\nValidation set:")
-        for key, value in valid_set_info.items():
-            print(f"\t{key[6:]}: {value[0]}")
-
-        print("\nTest set:")
-        for key, value in test_set_info.items():
-            print(f"\t{key[5:]}: {value[0]}")
-
-        print("\nModel:")
-        for key, value in model_info.items():
-            print(f"\t{key}: {value[0]}")
-
-        print("\nTraining:")
-        for key, value in experiment_info.items():
-            print(f"\t{key}: {value[0]}")
-
-        print("")
+        print_info("Model", model_info)
+        print_info("Task", task_info)
+        print_info("Datasets", datasets_info)
+        print_info("Trainset Statistics", train_set_info)
+        print_info("Validset Statistics", valid_set_info)
+        print_info("Testset Statistics", test_set_info)
+        print_info("Experiment", experiment_info)
 
         self.results = {
-            **model_info,
-            **train_set_info,
-            **valid_set_info,
-            **test_set_info,
-            **experiment_info,
+            **to_list_dict(model_info),
+            **to_list_dict(task_info),
+            **to_list_dict(datasets_info),
+            **to_list_dict(train_set_info),
+            **to_list_dict(valid_set_info),
+            **to_list_dict(test_set_info),
+            **to_list_dict(experiment_info),
         }
 
     def run(self) -> None:
@@ -187,10 +143,14 @@ class Experiment:
         print(f"\nExperiment runtime: {end_time - start_time:.3f}s")
 
         print("Saving results...")
+        os.makedirs(self.config.paths.results, exist_ok=True)
+        results_filename = os.path.join(
+            self.config.paths.results, "results.csv"
+        )
         pd.DataFrame.from_dict(self.results).to_csv(
-            self.config.paths.results,
+            results_filename,
             mode="a",
-            header=not os.path.isfile(self.config.paths.results),
+            header=not os.path.isfile(results_filename),
             index=False,
         )
         print("Done!")
@@ -247,23 +207,23 @@ class Experiment:
         total_train_loss = 0.0
 
         batch_counter = 0
+        n_samples = 0
         for batch in tqdm(self.train_set_loader):
             x, mask, label = batch
+            x, mask = x.to(self.device), mask.to(self.device)
             train_loss = self._train_step(x, mask, label)
-            total_train_loss += train_loss
+            n_samples += len(batch)
+            total_train_loss += train_loss * len(batch)
 
             step_counter = n_batches * self.epoch_counter + batch_counter
             self.summary_writer.add_scalar(loss_id, train_loss, step_counter)
             batch_counter += 1
 
-        return total_train_loss / n_batches
+        return total_train_loss / n_samples
 
     def _train_step(
         self, x: torch.Tensor, mask: torch.Tensor, label: torch.Tensor
     ) -> float:
-        if self.use_cuda:
-            x, mask, label = x.cuda(), mask.cuda(), label.cuda()
-
         self.optimizer.zero_grad()
         pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
@@ -278,10 +238,7 @@ class Experiment:
 
         self.optimizer.step()
 
-        the_loss_tensor = the_loss.data
-        if self.use_cuda:
-            the_loss_tensor = the_loss_tensor.cpu()
-
+        the_loss_tensor = the_loss.detach().cpu().data
         the_loss_numpy = the_loss_tensor.numpy().flatten()
         the_loss_float = float(the_loss_numpy[0])
 
@@ -294,10 +251,13 @@ class Experiment:
 
         with torch.no_grad():
             batch_counter = 0
+            n_samples = 0
             for batch in tqdm(data_loader):
                 x, mask, label = batch
+                x, mask = x.to(self.device), mask.to(self.device)
                 eval_loss = self._eval_step(x, mask, label)
-                total_eval_loss += eval_loss
+                n_samples += len(batch)
+                total_eval_loss += eval_loss * len(batch)
 
                 step_counter = n_batches * self.epoch_counter + batch_counter
                 self.summary_writer.add_scalar(
@@ -305,23 +265,17 @@ class Experiment:
                 )
                 batch_counter += 1
 
-        return total_eval_loss / n_batches
+        return total_eval_loss / n_samples
 
     def _eval_step(
         self, x: torch.Tensor, mask: torch.Tensor, label: torch.Tensor
     ) -> float:
-        if self.use_cuda:
-            x, label = x.cuda(), label.cuda()
-
         pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
 
-        the_loss_tensor = the_loss.data
-        if self.use_cuda:
-            the_loss_tensor = the_loss_tensor.cpu()
-
+        the_loss_tensor = the_loss.detach().cpu().data
         the_loss_numpy = the_loss_tensor.numpy().flatten()
         the_loss_float = float(the_loss_numpy[0])
 

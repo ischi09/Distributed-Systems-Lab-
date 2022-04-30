@@ -23,8 +23,7 @@ def main(config: Config):
     train_set, valid_set, test_set = generate_datasets(config)
 
     model = generate_model(
-        model_config=config.model,
-        dataset_config=config.trainset,
+        config=config,
         delta=train_set.delta,
     )
 
