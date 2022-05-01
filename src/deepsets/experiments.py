@@ -61,12 +61,9 @@ class Experiment:
         )
 
         task = get_task(config.task)
-        if isinstance(task, ClassificationTask):
-            self.loss_fn = partial(
-                task.loss_fn, weight=train_set.class_weights
-            )
-        else:
-            self.loss_fn = task.loss_fn
+        self.is_classification_task = isinstance(task, ClassificationTask)
+        self.train_class_weights = train_set.class_weights
+        self.loss_fn = task.loss_fn
 
         multisets_id = "multisets" if config.task.multisets else "sets"
         model_subdir = os.path.join(
@@ -233,7 +230,13 @@ class Experiment:
         pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
-        the_loss = self.loss_fn(pred, label)
+
+        if self.is_classification_task:
+            the_loss = self.loss_fn(
+                pred, label, weight=self.train_class_weights
+            )
+        else:
+            the_loss = self.loss_fn(pred, label)
 
         the_loss.backward()
 
