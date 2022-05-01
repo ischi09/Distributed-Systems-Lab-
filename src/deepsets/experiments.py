@@ -212,7 +212,10 @@ class Experiment:
         n_samples = 0
         for batch in tqdm(self.train_set_loader):
             x, mask, label = batch
-            x, mask = x.to(self.device), mask.to(self.device)
+            x = x.to(self.device)
+            mask = mask.to(self.device)
+            label = label.to(self.device)
+
             train_loss = self._train_step(x, mask, label)
             n_samples += len(batch)
             total_train_loss += train_loss * len(batch)
@@ -262,7 +265,10 @@ class Experiment:
             n_samples = 0
             for batch in tqdm(data_loader):
                 x, mask, label = batch
-                x, mask = x.to(self.device), mask.to(self.device)
+                x = x.to(self.device)
+                mask = mask.to(self.device)
+                label = label.to(self.device)
+
                 eval_loss = self._eval_step(x, mask, label)
                 n_samples += len(batch)
                 total_eval_loss += eval_loss * len(batch)
