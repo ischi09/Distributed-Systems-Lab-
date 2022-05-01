@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.8.12
   - pip
+  - scikit-learn
   - numpy
   - pandas
   - matplotlib

@@ -1,6 +1,7 @@
 import os
 import time
 import pandas as pd
+from functools import partial
 
 from typing import Any, List, Dict
 
@@ -13,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from .config import Config
-from .tasks import get_task
+from .tasks import get_task, ClassificationTask
 from .datasets import SetDataset, get_data_loader
 from .networks import count_parameters
 
@@ -60,7 +61,12 @@ class Experiment:
         )
 
         task = get_task(config.task)
-        self.loss_fn = task.loss_fn
+        if isinstance(task, ClassificationTask):
+            self.loss_fn = partial(
+                task.loss_fn, weight=train_set.class_weights
+            )
+        else:
+            self.loss_fn = task.loss_fn
 
         multisets_id = "multisets" if config.task.multisets else "sets"
         model_subdir = os.path.join(

@@ -2,6 +2,7 @@ from typing import Callable, List, Tuple, Iterator, Dict
 import random
 
 import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
@@ -84,6 +85,13 @@ class SetDataset(Dataset):
         set_degrees = [mask.sum() + 1 for _, mask, _, in self.sets]
         log_set_degrees = np.log(set_degrees)
         self.delta = float(np.mean(log_set_degrees))
+
+        # Class weights for weighted cross-entropy.
+        y = np.array(labels)
+        class_weights = compute_class_weight(
+            class_weight="balanced", classes=np.unique(y), y=y
+        )
+        self.class_weights = torch.from_numpy(class_weights)
 
     def __len__(self) -> int:
         return self.n_samples
