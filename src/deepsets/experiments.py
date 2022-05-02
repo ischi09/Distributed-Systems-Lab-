@@ -62,7 +62,7 @@ class Experiment:
 
         task = get_task(config.task)
         self.is_classification_task = isinstance(task, ClassificationTask)
-        self.train_class_weights = train_set.class_weights
+        self.train_class_weights = train_set.class_weights.to(self.device)
         self.loss_fn = task.loss_fn
 
         multisets_id = "multisets" if config.task.multisets else "sets"
