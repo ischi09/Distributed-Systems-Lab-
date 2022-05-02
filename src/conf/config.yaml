@@ -14,6 +14,7 @@ experiment:
   grad_norm_threshold: 50.0
   use_batch_sampler: False
   use_gpu: False
+  results_out: results.csv
 
 model:
   type: deepsets_mlp_sum

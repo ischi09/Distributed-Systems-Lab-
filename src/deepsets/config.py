@@ -20,6 +20,7 @@ class Experiment:
     grad_norm_threshold: float
     use_batch_sampler: bool
     use_gpu: bool
+    results_out: str
 
 
 @dataclass

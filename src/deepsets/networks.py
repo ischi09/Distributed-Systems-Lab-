@@ -31,7 +31,7 @@ def masked_std(x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
 
 
 def masked_max(x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-    neg_infinity = torch.tensor(float("-inf"))
+    neg_infinity = torch.tensor(float("-inf")).to(x.device)
     x = torch.where(mask.bool(), x, neg_infinity)
     return x.max(dim=1).values
 

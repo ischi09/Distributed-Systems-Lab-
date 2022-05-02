@@ -147,7 +147,7 @@ class Experiment:
         print("Saving results...")
         os.makedirs(self.config.paths.results, exist_ok=True)
         results_filename = os.path.join(
-            self.config.paths.results, "results.csv"
+            self.config.paths.results, self.config.experiment.results_out
         )
         pd.DataFrame.from_dict(self.results).to_csv(
             results_filename,
