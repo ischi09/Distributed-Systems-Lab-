@@ -199,10 +199,10 @@ def get_task(config: TaskConfig) -> Task:
 
     tasks = {
         "sum": SumTask(),
-        "cardinality": CardinalityTask(),
+        "mean": MeanTask(),
         "mode": ModeTask(n_classes),
         "max": MaxTask(),
-        "mean": MeanTask(),
+        "cardinality": CardinalityTask(),
         "longest_seq_length": LongestSeqLenTask(),
         "largest_contiguous_sum": LargestContiguousSumTask(),
         "largest_pair_sum": LargestNTupleSumTask(n=2),
