@@ -49,7 +49,7 @@ ACCUMLATORS = {
 }
 
 
-def generate_model(config: Config, delta: float) -> nn.Module:
+def build_model(config: Config, delta: float) -> nn.Module:
     model_config = config.model
     task = get_task(config.task)
 

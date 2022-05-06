@@ -5,8 +5,8 @@ import hydra
 import torch
 
 from config import Config
-from datasets import generate_datasets
-from models import generate_model
+from datasets import build_datasets
+from trainers import build_trainer
 from experiments import Experiment
 
 
@@ -23,19 +23,16 @@ def set_random_seeds(seed: int) -> None:
 def main(config: Config) -> None:
     set_random_seeds(config.experiment.random_seed)
 
-    train_set, valid_set, test_set = generate_datasets(config)
+    train_set, valid_set, test_set = build_datasets(config)
 
-    model = generate_model(
-        config=config,
-        delta=train_set.delta,
-    )
+    trainer = build_trainer(config=config, delta=train_set.delta)
 
     experiment = Experiment(
         config=config,
-        model=model,
         train_set=train_set,
         valid_set=valid_set,
         test_set=test_set,
+        trainer=trainer,
     )
 
     experiment.run()

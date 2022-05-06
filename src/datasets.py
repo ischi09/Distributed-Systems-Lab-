@@ -189,7 +189,7 @@ def sample_longest_len_set(
     return final
 
 
-def generate_datasets(config: Config):
+def build_datasets(config: Config):
     if config.task.label == "longest_seq_length":
         sample_set = sample_longest_len_set
     else:
