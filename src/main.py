@@ -6,7 +6,7 @@ import torch
 
 from config import Config
 from datasets import generate_datasets
-from networks import generate_model
+from models import generate_model
 from experiments import Experiment
 
 

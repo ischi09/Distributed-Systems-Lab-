@@ -16,7 +16,7 @@ from tqdm import tqdm
 from config import Config
 from tasks import get_task, ClassificationTask
 from datasets import SetDataset, get_data_loader
-from networks import count_parameters
+from models import count_parameters
 
 LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
 
