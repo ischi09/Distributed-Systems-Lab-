@@ -1,12 +1,13 @@
+import os
 import random
 import numpy as np
 import hydra
 import torch
 
-from deepsets.config import Config
-from deepsets.datasets import generate_datasets
-from deepsets.networks import generate_model
-from deepsets.experiments import Experiment
+from config import Config
+from datasets import generate_datasets
+from networks import generate_model
+from experiments import Experiment
 
 
 def set_random_seeds(seed: int) -> None:
@@ -16,8 +17,10 @@ def set_random_seeds(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-@hydra.main(config_path="conf", config_name="config")
-def main(config: Config):
+@hydra.main(
+    config_path=os.path.join(os.pardir, "config"), config_name="config"
+)
+def main(config: Config) -> None:
     set_random_seeds(config.experiment.random_seed)
 
     train_set, valid_set, test_set = generate_datasets(config)

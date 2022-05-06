@@ -12,8 +12,8 @@ from torch.utils.data.sampler import (
     SubsetRandomSampler,
 )
 
-from .config import Config
-from .tasks import Task, ClassificationTask, get_task
+from config import Config
+from tasks import Task, ClassificationTask, get_task
 
 
 class SetDataset(Dataset):

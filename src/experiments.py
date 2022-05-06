@@ -13,10 +13,10 @@ from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 
-from .config import Config
-from .tasks import get_task, ClassificationTask
-from .datasets import SetDataset, get_data_loader
-from .networks import count_parameters
+from config import Config
+from tasks import get_task, ClassificationTask
+from datasets import SetDataset, get_data_loader
+from networks import count_parameters
 
 LOSS_FNS = {"mse": F.mse_loss, "ce": F.cross_entropy}
 
@@ -76,7 +76,7 @@ class Experiment:
         log_dir = os.path.join(config.paths.log, model_subdir)
         self.summary_writer = SummaryWriter(log_dir=log_dir)
 
-        model_dir = os.path.join(config.paths.models, model_subdir)
+        model_dir = os.path.join(config.paths.checkpoints, model_subdir)
         os.makedirs(model_dir, exist_ok=True)
         self.best_model_filename = os.path.join(model_dir, "best_model.pth")
 

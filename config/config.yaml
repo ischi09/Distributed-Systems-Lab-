@@ -1,7 +1,7 @@
 paths:
-  log: ${hydra:runtime.cwd}/log
-  models: ${hydra:runtime.cwd}/models
-  results: ${hydra:runtime.cwd}/results
+  log: ${hydra:runtime.cwd}/../log
+  checkpoints: ${hydra:runtime.cwd}/../checkpoints
+  results: ${hydra:runtime.cwd}/../results
 
 experiment:
   max_epochs: 500
@@ -11,7 +11,7 @@ experiment:
   batch_size: 64
   random_seed: 99
   weight_decay: 5e-3
-  grad_norm_threshold: 50.0
+  grad_norm_threshold: 10.0
   use_batch_sampler: False
   use_gpu: False
   results_out: results.csv

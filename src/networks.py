@@ -3,10 +3,10 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from .config import Config
-from .tasks import ClassificationTask, get_task
-from .set_transformer.modules import SAB, PMA
-from .fspool.fspool import FSPool
+from config import Config
+from tasks import ClassificationTask, get_task
+from set_transformer.modules import SAB, PMA
+from fspool.fspool import FSPool
 
 
 def count_parameters(model: nn.Module) -> int:

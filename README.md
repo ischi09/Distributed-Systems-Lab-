@@ -10,11 +10,11 @@ conda env create -f environment.yml
 
 ## Cloning Model Code
 
-From the repository root, move to the `deepsets` folder and clone the
+From the repository root, move to the `src` folder and clone the
 [Set Transformer repository](https://github.com/juho-lee/set_transformer):
 
 ```bash
-cd src/deepsets
+cd src
 git clone https://github.com/juho-lee/set_transformer.git
 ```
 
