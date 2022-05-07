@@ -5,8 +5,11 @@ from typing import Dict, Callable, List, Tuple
 import numpy as np
 from sklearn.metrics import (
     mean_absolute_error,
+    median_absolute_error,
     mean_squared_error,
     r2_score,
+    max_error,
+    mean_absolute_percentage_error,
     accuracy_score,
     balanced_accuracy_score,
     f1_score,
@@ -66,9 +69,12 @@ class MetricsEngine:
 class RegressionMetricsEngine(MetricsEngine):
     def __init__(self) -> None:
         super().__init__()
-        self.register_metric("r2", r2_score)
-        self.register_metric("mae", mean_absolute_error)
         self.register_metric("mse", mean_squared_error)
+        self.register_metric("mae", mean_absolute_error)
+        self.register_metric("med_ae", median_absolute_error)
+        self.register_metric("max_error", max_error)
+        self.register_metric("mape", mean_absolute_percentage_error)
+        self.register_metric("r2", r2_score)
 
     def _collate_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
         labels = np.concatenate(self.labels)
