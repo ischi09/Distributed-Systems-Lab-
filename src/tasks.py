@@ -194,8 +194,10 @@ class ContainsEvenTask(ClassificationTask):
         return 1
 
 
-def get_task(config: TaskConfig) -> Task:
-    n_classes = len(np.arange(config.min_value, config.max_value + 1))
+def get_task(task_config: TaskConfig) -> Task:
+    n_classes = len(
+        np.arange(task_config.min_value, task_config.max_value + 1)
+    )
 
     tasks = {
         "sum": SumTask(),
@@ -210,4 +212,8 @@ def get_task(config: TaskConfig) -> Task:
         "contains_even": ContainsEvenTask(),
     }
 
-    return tasks[config.label]
+    return tasks[task_config.label]
+
+
+def is_classification_task(task_config: TaskConfig) -> bool:
+    return isinstance(get_task(task_config), ClassificationTask)

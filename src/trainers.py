@@ -1,6 +1,6 @@
 import os
 
-from typing import Dict
+from typing import Dict, Tuple
 
 from tqdm import tqdm
 
@@ -10,8 +10,9 @@ from torch.utils.data import DataLoader
 
 from config import Config
 from datasets import SetDataset, get_data_loader
-from tasks import get_task, ClassificationTask
+from tasks import get_task, is_classification_task
 from models import build_model
+from metrics import build_metrics_engine, print_metrics
 from log import build_summary_writer, get_model_subdir
 
 
@@ -56,8 +57,10 @@ class TorchTrainer(Trainer):
         )
 
         task = get_task(config.task)
-        self.is_classification_task = isinstance(task, ClassificationTask)
         self.loss_fn = task.loss_fn
+        self.is_classification_task = is_classification_task(config.task)
+
+        self.metrics_engine = build_metrics_engine(config.task)
 
         self.summary_writer = build_summary_writer(config)
 
@@ -85,21 +88,23 @@ class TorchTrainer(Trainer):
             print(f"\n*** Epoch {epoch_counter} ***")
 
             print("Training model...")
-            avg_train_loss = self._train_model(
+            avg_train_loss, train_metrics = self._train_model(
                 data_loader=train_set_loader,
                 class_weights=train_class_weights,
                 loss_id="train_loss",
                 epoch_counter=epoch_counter,
             )
             print(f"Average train loss: {avg_train_loss}")
+            print_metrics(train_metrics)
 
-            print("Validating model...")
-            avg_valid_loss = self._eval_model(
+            print("\nValidating model...")
+            avg_valid_loss, valid_metrics = self._eval_model(
                 data_loader=valid_set_loader,
                 loss_id="valid_loss",
                 epoch_counter=epoch_counter,
             )
             print(f"Average validation loss: {avg_valid_loss}")
+            print_metrics(valid_metrics)
 
             if self._has_loss_improved(best_valid_loss, avg_valid_loss):
                 loss_improvement = abs(best_valid_loss - avg_valid_loss)
@@ -133,14 +138,19 @@ class TorchTrainer(Trainer):
 
         print("\nTesting model...")
         self.model.load_state_dict(torch.load(self.best_model_filename))
-        avg_test_loss = self._eval_model(
+        avg_test_loss, test_metrics = self._eval_model(
             data_loader=test_set_loader,
             loss_id="test_loss",
             epoch_counter=0,
         )
         print(f"Average test loss: {avg_test_loss}")
+        print_metrics(test_metrics)
 
-        return {"avg_test_loss": avg_test_loss}
+        test_metrics = {
+            f"test_{name}": metric for name, metric in test_metrics.items()
+        }
+        test_metrics.update({"avg_test_loss": avg_test_loss})
+        return test_metrics
 
     def _train_model(
         self,
@@ -148,7 +158,9 @@ class TorchTrainer(Trainer):
         class_weights: torch.Tensor,
         loss_id: str,
         epoch_counter: int,
-    ) -> float:
+    ) -> Tuple[float, Dict[str, float]]:
+        self.metrics_engine.reset()
+
         self.model.train()
         n_batches = len(data_loader)
         total_train_loss = 0.0
@@ -171,7 +183,10 @@ class TorchTrainer(Trainer):
             self.summary_writer.add_scalar(loss_id, train_loss, step_counter)
             batch_counter += 1
 
-        return total_train_loss / n_samples
+        return (
+            total_train_loss / n_samples,
+            self.metrics_engine.compute_metrics(),
+        )
 
     def _train_step(
         self,
@@ -184,6 +199,10 @@ class TorchTrainer(Trainer):
         pred = self.model(x, mask)
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
+
+        self.metrics_engine.accumulate_predictions(
+            label.detach().cpu(), pred.detach().cpu()
+        )
 
         if self.is_classification_task:
             the_loss = self.loss_fn(pred, label, weight=class_weights)
@@ -206,7 +225,9 @@ class TorchTrainer(Trainer):
 
     def _eval_model(
         self, data_loader: DataLoader, loss_id: str, epoch_counter: int
-    ) -> float:
+    ) -> Tuple[float, Dict[str, float]]:
+        self.metrics_engine.reset()
+
         self.model.eval()
         n_batches = len(data_loader)
         total_eval_loss = 0.0
@@ -230,7 +251,10 @@ class TorchTrainer(Trainer):
                 )
                 batch_counter += 1
 
-        return total_eval_loss / n_samples
+        return (
+            total_eval_loss / n_samples,
+            self.metrics_engine.compute_metrics(),
+        )
 
     def _eval_step(
         self, x: torch.Tensor, mask: torch.Tensor, label: torch.Tensor
@@ -239,6 +263,10 @@ class TorchTrainer(Trainer):
         # To prevent error warning about mismatching dimensions.
         pred = pred.squeeze(dim=1)
         the_loss = self.loss_fn(pred, label)
+
+        self.metrics_engine.accumulate_predictions(
+            label.detach().cpu(), pred.detach().cpu()
+        )
 
         the_loss_tensor = the_loss.detach().cpu().data
         the_loss_numpy = the_loss_tensor.numpy().flatten()
