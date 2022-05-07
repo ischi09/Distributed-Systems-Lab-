@@ -1,5 +1,8 @@
-from typing import Callable
+from math import log, floor
 
+from typing import Callable, List
+
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -48,74 +51,6 @@ ACCUMLATORS = {
     "min": masked_min,
 }
 
-
-def build_model(config: Config, delta: float) -> nn.Module:
-    model_config = config.model
-    task = get_task(config.task)
-
-    if isinstance(task, ClassificationTask):
-        output_dim = task.n_classes
-    else:
-        output_dim = model_config.data_dim
-
-    model = None
-    if "deepsets_mlp" in model_config.type:
-        accumulator = model_config.type.split("_")[-1]
-        if accumulator in ACCUMLATORS.keys():
-            model = DeepSetsInvariant(
-                phi=InternalMLP(
-                    input_dim=model_config.data_dim,
-                    hidden_dim=10,
-                    output_dim=model_config.laten_dim,
-                ),
-                rho=InternalMLP(
-                    input_dim=model_config.laten_dim,
-                    hidden_dim=10,
-                    output_dim=output_dim,
-                ),
-                accumulator=ACCUMLATORS[accumulator],
-            )
-        elif accumulator == "fspool":
-            model = DeepSetsInvariantFSPool(
-                phi=InternalMLP(
-                    input_dim=model_config.data_dim,
-                    hidden_dim=10,
-                    output_dim=model_config.laten_dim,
-                ),
-                rho=InternalMLP(
-                    input_dim=model_config.laten_dim,
-                    hidden_dim=10,
-                    output_dim=output_dim,
-                ),
-                pool=FSPool(
-                    in_channels=model_config.laten_dim,
-                    n_pieces=10,  # TODO: should be a config parameter
-                ),
-            )
-    elif model_config.type == "pna":
-        model = Pna(
-            mlp=InternalMLP(
-                input_dim=12, hidden_dim=10, output_dim=output_dim
-            ),
-            delta=delta,
-        )
-    elif model_config.type == "mlp":
-        model = MLP(
-            input_dim=10,
-            hidden_dim=10,
-            output_dim=output_dim,
-        )
-    elif model_config.type == "sorted_mlp":
-        model = SortedMLP(
-            input_dim=10,
-            hidden_dim=10,
-            output_dim=output_dim,
-        )
-    elif model_config.type == "small_set_transformer":
-        model = SmallSetTransformer(output_dim=output_dim)
-    return model
-
-
 MaskedAccumulator = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
@@ -137,44 +72,76 @@ class DeepSetsInvariant(nn.Module):
         return self.rho(x)
 
 
-class InternalMLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+def interpolate_layer_dims(
+    input_dim: int, output_dim: int, n_layers: int = 4
+) -> List[int]:
+    layer_dims = np.linspace(input_dim, output_dim, num=n_layers, dtype=int)
+    return layer_dims.tolist()
+
+
+class ExpandingMlp(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int):
         super().__init__()
         self.output_dim = output_dim
 
-        self.layers = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, output_dim),
-        )
+        layer_dims = interpolate_layer_dims(input_dim, output_dim)
+        print(f"layer_dims={layer_dims}")
+
+        self.layers = nn.Sequential()
+        for in_dim, out_dim in zip(layer_dims, layer_dims[1:]):
+            self.layers.append(
+                nn.Linear(in_features=in_dim, out_features=out_dim)
+            )
+            self.layers.append(nn.PReLU())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
 
-class MLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+class ContractingMlp(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int):
         super().__init__()
-        self.mlp = InternalMLP(
-            input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim
+        self.output_dim = output_dim
+
+        layer_dims = interpolate_layer_dims(input_dim, output_dim)
+        print(f"layer_dims={layer_dims}")
+
+        self.layers = nn.Sequential()
+        for in_dim, out_dim in zip(layer_dims, layer_dims[1:]):
+            self.layers.append(
+                nn.Linear(in_features=in_dim, out_features=out_dim)
+            )
+            self.layers.append(nn.PReLU())
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.layers(x)
+
+
+class Mlp(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int):
+        super().__init__()
+        self.expander = ExpandingMlp(
+            input_dim=input_dim, output_dim=output_dim
+        )
+        self.contractor = ContractingMlp(
+            input_dim=output_dim, output_dim=input_dim
         )
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = x.squeeze(dim=-1)
-        return self.mlp(x)
+        x = self.expander(x)
+        x = self.contractor(x)
+        return x
 
 
-class SortedMLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+class SortedMlp(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int):
         super().__init__()
-        self.mlp = InternalMLP(
-            input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim
-        )
+        self.mlp = Mlp(input_dim=input_dim, output_dim=output_dim)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x, _ = torch.sort(x, dim=1)
-        x = x.squeeze(dim=-1)
-        return self.mlp(x)
+        return self.mlp(x, mask)
 
 
 class Pna(nn.Module):
@@ -211,7 +178,7 @@ class Pna(nn.Module):
 
         scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
 
-        return self.mlp(scale_concat)
+        return self.mlp(scale_concat, mask)
 
 
 class SmallSetTransformer(nn.Module):
@@ -251,3 +218,62 @@ class DeepSetsInvariantFSPool(nn.Module):
         x = torch.permute(x, (0, 2, 1))
         x, _ = self.pool(x, n=mask.sum(dim=1).squeeze(dim=-1))
         return self.rho(x)
+
+
+def build_model(config: Config, delta: float) -> nn.Module:
+    model_config = config.model
+    task = get_task(config.task)
+
+    if isinstance(task, ClassificationTask):
+        output_dim = task.n_classes
+    else:
+        output_dim = model_config.data_dim
+
+    model = None
+    if "deepsets_mlp" in model_config.type:
+        accumulator = model_config.type.split("_")[-1]
+        if accumulator in ACCUMLATORS.keys():
+            model = DeepSetsInvariant(
+                phi=ExpandingMlp(
+                    input_dim=model_config.data_dim,
+                    output_dim=model_config.laten_dim,
+                ),
+                rho=ContractingMlp(
+                    input_dim=model_config.laten_dim,
+                    output_dim=output_dim,
+                ),
+                accumulator=ACCUMLATORS[accumulator],
+            )
+        elif accumulator == "fspool":
+            model = DeepSetsInvariantFSPool(
+                phi=ExpandingMlp(
+                    input_dim=model_config.data_dim,
+                    output_dim=model_config.laten_dim,
+                ),
+                rho=ContractingMlp(
+                    input_dim=model_config.laten_dim,
+                    output_dim=output_dim,
+                ),
+                pool=FSPool(
+                    in_channels=model_config.laten_dim,
+                    n_pieces=10,  # TODO: should be a config parameter
+                ),
+            )
+    elif model_config.type == "pna":
+        model = Pna(
+            mlp=Mlp(input_dim=12, output_dim=output_dim),
+            delta=delta,
+        )
+    elif model_config.type == "mlp":
+        model = Mlp(
+            input_dim=config.task.max_set_size,
+            output_dim=output_dim,
+        )
+    elif model_config.type == "sorted_mlp":
+        model = SortedMlp(
+            input_dim=config.task.max_set_size,
+            output_dim=output_dim,
+        )
+    elif model_config.type == "small_set_transformer":
+        model = SmallSetTransformer(output_dim=output_dim)
+    return model
