@@ -72,66 +72,34 @@ class DeepSetsInvariant(nn.Module):
         return self.rho(x)
 
 
-def interpolate_layer_dims(
-    input_dim: int, output_dim: int, n_layers: int = 4
-) -> List[int]:
-    layer_dims = np.linspace(input_dim, output_dim, num=n_layers, dtype=int)
-    return layer_dims.tolist()
-
-
-class ExpandingMlp(nn.Module):
+class InternalMlp(nn.Module):
     def __init__(self, input_dim: int, output_dim: int):
         super().__init__()
         self.output_dim = output_dim
 
-        layer_dims = interpolate_layer_dims(input_dim, output_dim)
-        print(f"layer_dims={layer_dims}")
-
-        self.layers = nn.Sequential()
-        for in_dim, out_dim in zip(layer_dims, layer_dims[1:]):
-            self.layers.append(
-                nn.Linear(in_features=in_dim, out_features=out_dim)
-            )
-            self.layers.append(nn.PReLU())
+        self.fully_conn_1 = nn.Sequential(
+            nn.Linear(in_features=input_dim, out_features=50), nn.PReLU()
+        )
+        self.fully_conn_2 = nn.Sequential(
+            nn.Linear(in_features=50, out_features=50), nn.PReLU()
+        )
+        self.final = nn.Linear(in_features=50, out_features=output_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layers(x)
-
-
-class ContractingMlp(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int):
-        super().__init__()
-        self.output_dim = output_dim
-
-        layer_dims = interpolate_layer_dims(input_dim, output_dim)
-        print(f"layer_dims={layer_dims}")
-
-        self.layers = nn.Sequential()
-        for in_dim, out_dim in zip(layer_dims, layer_dims[1:]):
-            self.layers.append(
-                nn.Linear(in_features=in_dim, out_features=out_dim)
-            )
-            self.layers.append(nn.PReLU())
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layers(x)
+        x = self.fully_conn_1(x)
+        x = self.fully_conn_2(x)
+        x = self.final(x)
+        return x
 
 
 class Mlp(nn.Module):
     def __init__(self, input_dim: int, output_dim: int):
         super().__init__()
-        self.expander = ExpandingMlp(
-            input_dim=input_dim, output_dim=output_dim
-        )
-        self.contractor = ContractingMlp(
-            input_dim=output_dim, output_dim=input_dim
-        )
+        self.mlp = InternalMlp(input_dim=input_dim, output_dim=output_dim)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         x = x.squeeze(dim=-1)
-        x = self.expander(x)
-        x = self.contractor(x)
-        return x
+        return self.mlp(x)
 
 
 class SortedMlp(nn.Module):
@@ -178,7 +146,7 @@ class Pna(nn.Module):
 
         scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
 
-        return self.mlp(scale_concat, mask)
+        return self.mlp(scale_concat)
 
 
 class SmallSetTransformer(nn.Module):
@@ -232,28 +200,27 @@ def build_model(config: Config, delta: float) -> nn.Module:
     model = None
     if "deepsets_mlp" in model_config.type:
         accumulator = model_config.type.split("_")[-1]
+
+        phi = InternalMlp(
+            input_dim=model_config.data_dim,
+            output_dim=model_config.laten_dim,
+        )
+
+        rho = InternalMlp(
+            input_dim=model_config.laten_dim,
+            output_dim=output_dim,
+        )
+
         if accumulator in ACCUMLATORS.keys():
             model = DeepSetsInvariant(
-                phi=ExpandingMlp(
-                    input_dim=model_config.data_dim,
-                    output_dim=model_config.laten_dim,
-                ),
-                rho=ContractingMlp(
-                    input_dim=model_config.laten_dim,
-                    output_dim=output_dim,
-                ),
+                phi=phi,
+                rho=rho,
                 accumulator=ACCUMLATORS[accumulator],
             )
         elif accumulator == "fspool":
             model = DeepSetsInvariantFSPool(
-                phi=ExpandingMlp(
-                    input_dim=model_config.data_dim,
-                    output_dim=model_config.laten_dim,
-                ),
-                rho=ContractingMlp(
-                    input_dim=model_config.laten_dim,
-                    output_dim=output_dim,
-                ),
+                phi=phi,
+                rho=rho,
                 pool=FSPool(
                     in_channels=model_config.laten_dim,
                     n_pieces=10,  # TODO: should be a config parameter
@@ -261,7 +228,7 @@ def build_model(config: Config, delta: float) -> nn.Module:
             )
     elif model_config.type == "pna":
         model = Pna(
-            mlp=Mlp(input_dim=12, output_dim=output_dim),
+            mlp=InternalMlp(input_dim=12, output_dim=output_dim),
             delta=delta,
         )
     elif model_config.type == "mlp":

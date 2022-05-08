@@ -17,12 +17,12 @@ experiment:
   results_out: results.csv
 
 model:
-  type: mlp
+  type: deepsets_mlp_sum
   data_dim: 1
-  laten_dim: 16
+  laten_dim: 8
 
 task:
-  max_set_size: 16
+  max_set_size: 8
   min_value: -100
   max_value: 100
   label: sum
