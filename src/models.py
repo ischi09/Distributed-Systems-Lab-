@@ -203,11 +203,11 @@ def build_model(config: Config, delta: float) -> nn.Module:
 
         phi = InternalMlp(
             input_dim=model_config.data_dim,
-            output_dim=model_config.laten_dim,
+            output_dim=config.task.max_set_size,
         )
 
         rho = InternalMlp(
-            input_dim=model_config.laten_dim,
+            input_dim=config.task.max_set_size,
             output_dim=output_dim,
         )
 
