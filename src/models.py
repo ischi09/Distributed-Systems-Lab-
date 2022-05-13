@@ -222,7 +222,7 @@ def build_model(config: Config, delta: float) -> nn.Module:
                 phi=phi,
                 rho=rho,
                 pool=FSPool(
-                    in_channels=model_config.laten_dim,
+                    in_channels=config.task.max_set_size,
                     n_pieces=10,  # TODO: should be a config parameter
                 ),
             )
