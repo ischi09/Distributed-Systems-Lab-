@@ -8,6 +8,8 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
+from repset.repset.models import RepSet
+
 from config import Config
 from datasets import SetDataset, get_data_loader
 from tasks import get_task, is_classification_task
@@ -278,9 +280,110 @@ class TorchTrainer(Trainer):
         return self.config.experiment.min_delta < best_loss - new_loss
 
 
+class RepSetTrainer(Trainer):
+    def __init__(self, config: Config, model: RepSet) -> None:
+        super().__init__()
+
+        self.config = config
+        self.model = model
+
+        self.metrics_engine = build_metrics_engine(config.task)
+
+    def train(
+        self, train_set: SetDataset, valid_set: SetDataset
+    ) -> Dict[str, float]:
+        train_set_loader = get_data_loader(
+            dataset=train_set,
+            batch_size=self.config.experiment.batch_size,
+            use_batch_sampler=self.config.experiment.use_batch_sampler,
+        )
+        valid_set_loader = get_data_loader(
+            dataset=valid_set,
+            batch_size=self.config.experiment.batch_size,
+            use_batch_sampler=self.config.experiment.use_batch_sampler,
+        )
+
+        epoch_counter = 0
+
+        avg_train_loss = float("inf")
+        best_valid_loss = float("inf")
+        n_no_improvement_epochs = 0
+        for _ in range(self.config.experiment.max_epochs):
+            print(f"\n*** Epoch {epoch_counter} ***")
+
+            print("Training model...")
+            avg_train_loss, train_metrics = self._train_model(
+                data_loader=train_set_loader,
+            )
+            print(f"Average train loss: {avg_train_loss}")
+            print_metrics(train_metrics)
+
+            print("\nValidating model...")
+            avg_valid_loss, valid_metrics = self._eval_model(
+                data_loader=valid_set_loader,
+                loss_id="valid_loss",
+                epoch_counter=epoch_counter,
+            )
+            print(f"Average validation loss: {avg_valid_loss}")
+            print_metrics(valid_metrics)
+
+            if self._has_loss_improved(best_valid_loss, avg_valid_loss):
+                loss_improvement = abs(best_valid_loss - avg_valid_loss)
+                print(
+                    f"Best validation loss has improved by {loss_improvement}!"
+                )
+
+                torch.save(self.model.state_dict(), self.best_model_filename)
+                best_valid_loss = avg_valid_loss
+                n_no_improvement_epochs = 0
+            else:
+                n_no_improvement_epochs += 1
+
+            if n_no_improvement_epochs >= self.config.experiment.patience:
+                break
+
+            epoch_counter += 1
+
+        return {
+            "epochs": epoch_counter,
+            "avg_train_loss": avg_train_loss,
+            "best_valid_loss": best_valid_loss,
+        }
+
+    def test(self, test_set: SetDataset) -> Dict[str, float]:
+        return super().test(test_set)
+
+    def _train_model(
+        self,
+        data_loader: DataLoader,
+    ) -> Tuple[float, Dict[str, float]]:
+        self.metrics_engine.reset()
+
+        total_train_loss = 0.0
+
+        n_samples = 0
+        for batch in tqdm(data_loader):
+            x, _, label = batch
+
+            pred = self.model.train(X=x.numpy(), y=label.numpy())
+
+            # TODO: computer train loss
+
+            self.metrics_engine.accumulate_predictions(
+                label.detach().cpu(), torch.tensor(pred)
+            )
+
+        return (
+            total_train_loss / n_samples,
+            self.metrics_engine.compute_metrics(),
+        )
+
+
 def build_trainer(config: Config, delta: float) -> Trainer:
     model = build_model(
         config=config,
         delta=delta,
     )
+    if config.model.type == "rep_set":
+        return RepSetTrainer(config=config, model=model)
     return TorchTrainer(config=config, model=model)

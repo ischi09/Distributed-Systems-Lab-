@@ -10,6 +10,7 @@ from config import Config
 from tasks import ClassificationTask, get_task
 from set_transformer.modules import SAB, PMA
 from fspool.fspool import FSPool
+from repset.repset.models import RepSet
 
 
 def count_parameters(model: nn.Module) -> int:
@@ -243,4 +244,12 @@ def build_model(config: Config, delta: float) -> nn.Module:
         )
     elif model_config.type == "small_set_transformer":
         model = SmallSetTransformer(output_dim=output_dim)
+    elif model_config.type == "rep_set":
+        model = RepSet(
+            lr=config.experiment.lr,
+            n_hidden_sets=10,
+            n_elements=config.task.max_set_size,
+            d=config.model.data_dim,
+            n_classes=task.n_classes,
+        )
     return model

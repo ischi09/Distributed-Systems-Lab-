@@ -4,24 +4,36 @@
 
 Run the following command in the repository root:
 
-```bash
+```sh
 conda env create -f environment.yml
 ```
 
 ## Cloning Model Code
 
-From the repository root, move to the `src` folder and clone the
+From the repository root, move to the `src` folder:
+
+```sh
+cd src
+```
+
+and clone the following repositories:
+
 [Set Transformer repository](https://github.com/juho-lee/set_transformer):
 
-```bash
-cd src
+```sh
 git clone https://github.com/juho-lee/set_transformer.git
 ```
 
-as well as the [FSPool repository](https://github.com/Cyanogenoid/fspool):
+[FSPool repository](https://github.com/Cyanogenoid/fspool):
 
-```bash
+```sh
 git clone https://github.com/Cyanogenoid/fspool.git
+```
+
+[Rep The Set](https://github.com/giannisnik/repset):
+
+```sh
+git clone https://github.com/giannisnik/repset.git
 ```
 
 # Experiment Settings
@@ -36,6 +48,7 @@ git clone https://github.com/Cyanogenoid/fspool.git
 | MLP                                                                                                                      | `mlp`                   |
 | Sorted MLP                                                                                                               | `sorted_mlp`            |
 | [DeepSets with MLP and FSPool](https://arxiv.org/abs/1906.02795)                                                         | `deepsets_mlp_fspool`   |
+| [Rep The Set](https://proceedings.mlr.press/v108/skianis20a.html)                                                        | `rep_set`               |
 
 ## Available Labels (Tasks)
 

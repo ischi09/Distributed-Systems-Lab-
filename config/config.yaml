@@ -17,7 +17,7 @@ experiment:
   results_out: results.csv
 
 model:
-  type: deepsets_mlp_sum
+  type: rep_set
   data_dim: 1
   laten_dim: 8
 
@@ -25,7 +25,7 @@ task:
   max_set_size: 8
   min_value: -100
   max_value: 100
-  label: sum
+  label: contains_even
   multisets: True
 
 datasets:
