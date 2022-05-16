@@ -183,7 +183,7 @@ class DeepSetsInvariantFSPool(nn.Module):
         x = self.phi(x)  # x.shape = (batch_size, set_size, input_dim)
         # x.shape = (batch_size, latent_dim, set_size), as FSPool requires
         # set_dim last.
-        x = torch.permute(x, (0, 2, 1))
+        x = x.permute( (0, 2, 1))
         x, _ = self.pool(x, n=mask.sum(dim=1).squeeze(dim=-1))
         return self.rho(x)
 
