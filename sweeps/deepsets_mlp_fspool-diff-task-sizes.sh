@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#SBATCH --output=/home/ishamanna/Distributed-Systems-Lab-/results%j.out     
+#SBATCH --error=/home/ishamanna/Distributed-Systems-Lab-/results%j.err  
 old_dir=$(pwd)
 cd ../src
 
