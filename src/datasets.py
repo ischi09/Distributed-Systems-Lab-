@@ -1,7 +1,10 @@
-from typing import Callable, List, Tuple, Iterator, Dict
 import random
+from functools import partial
+
+from typing import Callable, List, Tuple, Iterator, Dict
 
 import numpy as np
+from scipy import stats
 from sklearn.utils.class_weight import compute_class_weight
 import torch
 from torch.utils.data import DataLoader
@@ -16,6 +19,10 @@ from config import Config
 from tasks import Task, ClassificationTask, get_task
 
 
+def to_tensor(x: np.ndarray) -> torch.Tensor:
+    return torch.tensor(x, dtype=torch.float)
+
+
 class SetDataset(Dataset):
     def __init__(
         self,
@@ -28,40 +35,61 @@ class SetDataset(Dataset):
         task: Task,
     ):
         self.n_samples = n_samples
-        self.sets = []
+        self.max_set_size = max_set_size
+        self.min_value = min_value
+        self.max_value = max_value
+        self.use_multisets = use_multisets
+        self.sample_set = sample_set
+        self.task = task
+
+        self.sets: List[torch.Tensor] = []
         # Map from set size to indices in sets list that have this size.
         self.set_distribution: Dict[int, List[int]] = {}
 
-        for i in range(n_samples):
+        self._init_samples()
+
+        if isinstance(self.task, ClassificationTask):
+            labels_list = [torch.argmax(label) for _, _, label in self.sets]
+        else:
+            labels_list = [label for _, _, label in self.sets]
+        labels = np.array(labels_list)
+
+        self._init_dataset_statistics(labels)
+        self._init_class_weights(labels)
+
+    def _init_samples(self) -> None:
+        for i in range(self.n_samples):
             # Generate the actual random set.
-            rand_set = sample_set(
-                min_value, max_value, max_set_size, use_multisets
+            rand_set = self.sample_set(
+                self.min_value,
+                self.max_value,
+                self.max_set_size,
+                self.use_multisets,
             )
             rand_set_size = rand_set.shape[0]
+            data_dim = rand_set.shape[1]
 
             # Generate the padding to the maximum size.
-            padding_len = max_set_size - rand_set_size
-            padding = np.repeat(task.padding_element(), padding_len)
-            padding = padding[:, np.newaxis]
+            padding_len = self.max_set_size - rand_set_size
+            padding = np.broadcast_to(
+                self.task.padding_element(), (padding_len, data_dim)
+            )
 
             # Generate padded random set and padding mask.
             padded_rand_set = np.vstack((rand_set, padding))
             mask = np.vstack(
                 (
-                    np.ones(rand_set.shape, dtype=np.int),
-                    np.zeros(padding.shape, dtype=np.int),
+                    np.ones((rand_set_size, 1), dtype=np.int),
+                    np.zeros((padding_len, 1), dtype=np.int),
                 )
             )
-
-            def to_tensor(x: np.ndarray) -> torch.Tensor:
-                return torch.tensor(x, dtype=torch.float)
 
             rand_set = to_tensor(rand_set)
             padded_rand_set = to_tensor(padded_rand_set)
             mask = to_tensor(mask)
 
             self.sets.append(
-                (padded_rand_set, mask, task.generate_label(rand_set))
+                (padded_rand_set, mask, self.task.generate_label(rand_set))
             )
             try:
                 self.set_distribution[rand_set_size].append(i)
@@ -69,27 +97,28 @@ class SetDataset(Dataset):
                 self.set_distribution[rand_set_size] = []
                 self.set_distribution[rand_set_size].append(i)
 
-        # After processing for later evaluation
-        if isinstance(task, ClassificationTask):
-            labels = [torch.argmax(label) for _, _, label in self.sets]
-        else:
-            labels = [label for _, _, label in self.sets]
-        self.label_mean = np.mean(labels)
-        self.label_mode = float(torch.tensor(labels).squeeze().mode().values)
-        self.label_median = float(np.median(labels))
-        self.label_max = float(np.max(labels))
-        self.label_min = float(np.min(labels))
-        self.label_std = float(np.std(labels))
+    def _init_dataset_statistics(self, labels: np.ndarray) -> None:
+        self.label_mean = labels.mean().item()
+        self.label_mode = stats.mode(labels, axis=None).mode.item()
+        self.label_median = np.median(labels).item()
+        self.label_max = labels.max().item()
+        self.label_min = labels.min().item()
+        self.label_std = labels.std().item()
+
+        # Label Entropy.
+        _, unique_label_counts = np.unique(labels, return_counts=True)
+        label_probs = (unique_label_counts + 1) / len(labels)
+        self.label_entropy = -np.sum(label_probs * np.log2(label_probs))
 
         # Delta for PNA architecture.
         set_degrees = [mask.sum() + 1 for _, mask, _, in self.sets]
         log_set_degrees = np.log(set_degrees)
-        self.delta = float(np.mean(log_set_degrees))
+        self.delta = np.mean(log_set_degrees).item()
 
+    def _init_class_weights(self, labels: np.ndarray) -> None:
         # Class weights for weighted cross-entropy.
-        y = np.array(labels)
         class_weights = compute_class_weight(
-            class_weight="balanced", classes=np.unique(y), y=y
+            class_weight="balanced", classes=np.unique(labels), y=labels
         )
         self.class_weights = torch.from_numpy(class_weights)
 
@@ -164,6 +193,32 @@ def sample_integer_set(
     return rand_set
 
 
+def sample_integer_point_set(
+    min_value: int,
+    max_value: int,
+    max_set_size: int,
+    use_multisets: bool,
+    dimension: int,
+) -> np.ndarray:
+    values = np.arange(min_value, max_value + 1)
+    rand_set_size = random.randint(1, max_set_size)
+    if use_multisets:
+        rand_set_shape = (rand_set_size, dimension)
+        rand_set = np.random.choice(
+            values, rand_set_shape, replace=use_multisets
+        )
+    else:
+        rand_points = set()
+        while len(rand_points) < rand_set_size:
+            point_shape = (dimension,)
+            rand_point = tuple(
+                np.random.choice(values, point_shape, replace=use_multisets)
+            )
+            rand_points.add(rand_point)
+        rand_set = np.array([list(point) for point in rand_points])
+    return rand_set
+
+
 def sample_longest_len_set(
     min_value: int, max_value: int, max_set_size: int, use_multisets: bool
 ) -> np.ndarray:
@@ -192,6 +247,11 @@ def sample_longest_len_set(
 def build_datasets(config: Config):
     if config.task.label == "longest_seq_length":
         sample_set = sample_longest_len_set
+    if (
+        config.task.label == "contains_equilateral_triangle"
+        or config.task.label == "largest_l2_norm"
+    ):
+        sample_set = partial(sample_integer_point_set, dimension=2)
     else:
         sample_set = sample_integer_set
 
