@@ -1,0 +1,4 @@
+[2022-05-09 13:18:37,385][HYDRA] Launching 120 jobs locally
+[2022-05-09 13:18:37,385][HYDRA] 	#0 : experiment.random_seed=9 experiment.results_out=mlp-diff-set-sizes-results.csv experiment.use_gpu=True task.label=sum task.max_set_size=8 task.multisets=True model.type=mlp
+[2022-05-09 13:18:39,866][HYDRA] 	#1 : experiment.random_seed=9 experiment.results_out=mlp-diff-set-sizes-results.csv experiment.use_gpu=True task.label=sum task.max_set_size=16 task.multisets=True model.type=mlp
+slurmstepd: error: *** JOB 473363 ON arton03 CANCELLED AT 2022-05-16T13:18:31 DUE TO TIME LIMIT ***
