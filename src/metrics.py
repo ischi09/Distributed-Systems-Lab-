@@ -90,10 +90,11 @@ class ClassificationMetricsEngine(MetricsEngine):
         self.register_metric(
             "f1_weighted", partial(f1_score, average="weighted")
         )
-        self.register_metric("precision", precision_score)
-        self.register_metric("recall", recall_score)
         self.register_metric(
-            "roc_auc_weighted", partial(roc_auc_score, average="weighted")
+            "precision", partial(precision_score, average="weighted")
+        )
+        self.register_metric(
+            "recall", partial(recall_score, average="weighted")
         )
 
     def _collate_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
