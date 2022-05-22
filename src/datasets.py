@@ -244,6 +244,21 @@ def sample_longest_len_set(
     return final
 
 
+def sample_contains_even_set(
+    min_value: int, max_value: int, max_set_size: int, use_multisets: bool
+) -> np.ndarray:
+    values = np.arange(min_value, max_value + 1)
+
+    should_contain_even = random.choice([True, False])
+    if not should_contain_even:
+        values = np.array([v for v in values if v % 2 != 0])
+
+    rand_set_size = random.randint(1, max_set_size)
+    rand_set_shape = (rand_set_size, 1)
+    rand_set = np.random.choice(values, rand_set_shape, replace=use_multisets)
+    return rand_set
+
+
 def build_datasets(config: Config):
     if config.task.label == "longest_seq_length":
         sample_set = sample_longest_len_set
@@ -252,6 +267,8 @@ def build_datasets(config: Config):
         or config.task.label == "largest_l2_norm"
     ):
         sample_set = partial(sample_integer_point_set, dimension=2)
+    elif config.task.label == "contains_even":
+        sample_set = sample_contains_even_set
     else:
         sample_set = sample_integer_set
 
