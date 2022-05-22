@@ -1,5 +1,8 @@
 ## Custom Excludes ##
 
+# Temporary directory
+tmp/
+
 # Log directories
 log/
 outputs/
