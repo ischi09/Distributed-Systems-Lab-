@@ -3,6 +3,8 @@
 # Log directories
 log/
 outputs/
+checkpoints/
+results/
 
 # Sweep directory
 multirun/
@@ -13,6 +15,9 @@ multirun/
 # External repository code
 set_transformer
 fspool
+
+# VS Code
+.vscode
 
 ## GitHub Python Excludes ##
 
