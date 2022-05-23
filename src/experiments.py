@@ -24,6 +24,7 @@ def dataset_stats_dict(dataset: SetDataset, kind: str) -> Dict[str, Any]:
         f"{kind}_label_max": dataset.label_max,
         f"{kind}_label_median": dataset.label_median,
         f"{kind}_label_mode": dataset.label_mode,
+        f"{kind}_label_entropy": dataset.label_entropy,
         f"{kind}_delta": dataset.delta,
     }
 
@@ -44,9 +45,9 @@ class Experiment:
         self.valid_set = valid_set
         self.test_set = test_set
 
-        self.init_results_logging()
+        self._init_results_logging()
 
-    def init_results_logging(self) -> None:
+    def _init_results_logging(self) -> None:
         model_info = self.config.model._content
         model_info["n_params"] = count_parameters(self.trainer.model)
 
