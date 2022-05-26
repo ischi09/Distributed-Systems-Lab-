@@ -55,7 +55,9 @@ class SetDataset(Dataset):
         labels = np.array(labels_list)
 
         self._init_dataset_statistics(labels)
-        self._init_class_weights(labels)
+        self.class_weights = torch.tensor([0,0])
+        if isinstance(self.task, ClassificationTask):
+            self._init_class_weights(labels)
 
     def _init_samples(self) -> None:
         for i in range(self.n_samples):

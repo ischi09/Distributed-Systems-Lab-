@@ -3,6 +3,7 @@ from typing import Callable
 import numpy as np
 import torch
 import torch.nn.functional as F
+import math
 
 from config import Task as TaskConfig
 
@@ -179,6 +180,34 @@ class LargestNTupleSumTask(RegressionTask):
     def padding_element(self) -> int:
         return -1
 
+class AverageNTupleSumTask(RegressionTask):
+    def __init__(self, n: int) -> None:
+        if n == 2:
+            label = "average_pair_sum"
+        elif n == 3:
+            label = "average_triple_sum"
+        else:
+            label = f"average_{n}_tuple_sum"
+            
+        super().__init__(label=label)
+        
+        self.n = n
+    
+    def generate_label(self, x: torch.Tensor) -> torch.Tensor:
+        x_list = x.float().flatten().tolist()
+        while (len(x_list) < self.n):
+            x_list.append(self.padding_element())
+        
+        # print(f"x_list : {x_list}")
+        sum_set = sum(x_list)
+        combi = math.comb(len(x_list), self.n)
+        result = self.n * sum_set/combi
+        # print(f"Mean = {mean} \n combi = {combi} \n result = {result}\n Length = {len(x)}\n M = {self.n}\n------------------")
+        return torch.tensor(result, dtype=torch.float)
+    
+    def padding_element(self) -> int:
+        return 0
+    
 
 class ContainsEvenTask(ClassificationTask):
     def __init__(self) -> None:
@@ -209,6 +238,11 @@ def get_task(task_config: TaskConfig) -> Task:
         "largest_contiguous_sum": LargestContiguousSumTask(),
         "largest_pair_sum": LargestNTupleSumTask(n=2),
         "largest_triple_sum": LargestNTupleSumTask(n=3),
+        "average_pair_sum": AverageNTupleSumTask(n=2),
+        "average_triple_sum": AverageNTupleSumTask(n=3),
+        "average_4_tuple_sum": AverageNTupleSumTask(n=4),
+        "average_5_tuple_sum": AverageNTupleSumTask(n=5),
+        "average_10_tuple_sum": AverageNTupleSumTask(n=10),
         "contains_even": ContainsEvenTask(),
     }
 
