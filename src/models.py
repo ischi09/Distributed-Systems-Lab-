@@ -310,4 +310,16 @@ def build_model(config: Config, delta: float) -> nn.Module:
         )
     elif model_config.type == "small_set_transformer":
         model = SmallSetTransformer(output_dim=output_dim)
+    # TODO need to know how to handle the hidden dimension, n_layers and DROP PROBABLITY!! on initailisation.
+    elif model_config.type == "lstm":
+        model = LSTMNet(input_dim=config.task.max_set_size, 
+                        hidden_dim=9, 
+                        output_dim=output_dim, 
+                        n_layers=9)
+        
+    elif model_config.type == "gru":
+        model = GRUNet(input_dim=config.task.max_set_size, 
+                       hidden_dim=9, 
+                       output_dim=output_dim, 
+                       n_layers=9)
     return model
