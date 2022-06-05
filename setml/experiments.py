@@ -5,11 +5,11 @@ from typing import Any, List, Dict
 
 import pandas as pd
 
-from config import Config
-from datasets import SetDataset
-from tasks import get_task
-from models import count_parameters
-from trainers import Trainer
+from .config import Config
+from .datasets import SetDataset
+from .tasks import get_task
+from .models import count_parameters
+from .trainers import Trainer
 
 
 def to_list_dict(d: Dict[str, Any]) -> Dict[str, List[Any]]:

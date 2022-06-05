@@ -15,12 +15,11 @@ from sklearn.metrics import (
     f1_score,
     precision_score,
     recall_score,
-    roc_auc_score,
 )
 import torch
 
-from config import Task as TaskConfig
-from tasks import is_classification_task
+from .config import Task as TaskConfig
+from .tasks import is_classification_task
 
 MetricFn = Callable[[np.ndarray, np.ndarray], float]
 

@@ -1,11 +1,11 @@
-from typing import Callable
+import math
+from typing import Callable, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-import math
 
-from config import Task as TaskConfig
+from .config import Task as TaskConfig
 
 
 class Task:
@@ -22,6 +22,7 @@ class Task:
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
+    @property
     def padding_element(self) -> int:
         """
         Return element to be used as set padding.
@@ -52,6 +53,7 @@ class MaxTask(RegressionTask):
 
     # TODO: Fix and make it dependent on the task configuration. Should be
     # min. possible element, maybe minus 1.
+    @property
     def padding_element(self) -> int:
         return -1
 
@@ -68,6 +70,7 @@ class ModeTask(ClassificationTask):
 
     # TODO: Fix and make it dependent on the task configuration. Should be
     # random element outside of possible elements.
+    @property
     def padding_element(self) -> int:
         return -1
 
@@ -79,6 +82,7 @@ class CardinalityTask(RegressionTask):
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return torch.tensor(len(x), dtype=torch.float)
 
+    @property
     def padding_element(self) -> int:
         return 0
 
@@ -90,6 +94,7 @@ class SumTask(RegressionTask):
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return x.sum()
 
+    @property
     def padding_element(self) -> int:
         return 0
 
@@ -101,6 +106,7 @@ class MeanTask(RegressionTask):
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         return x.mean()
 
+    @property
     def padding_element(self) -> int:
         return 0
 
@@ -139,6 +145,7 @@ class LongestSeqLenTask(RegressionTask):
 
     # TODO: Fix and make it dependent on the task configuration. Should be
     # random element outside of possible elements.
+    @property
     def padding_element(self) -> int:
         return -1
 
@@ -154,6 +161,7 @@ class LargestContiguousSumTask(RegressionTask):
         result = max_val if max_val < 0 else sum([max(v, 0) for v in values])
         return torch.tensor(result, dtype=torch.float)
 
+    @property
     def padding_element(self) -> int:
         return -1
 
@@ -177,37 +185,43 @@ class LargestNTupleSumTask(RegressionTask):
 
     # TODO: Fix and make it dependent on the task configuration. Should be
     # min. possible element, maybe minus 1.
+    @property
     def padding_element(self) -> int:
         return -1
 
-class AverageNTupleSumTask(RegressionTask):
-    def __init__(self, n: int) -> None:
-        if n == 2:
+
+def avg_m_tuple_sum(xs: Sequence[float], m: int) -> float:
+    """Compute the average of all sums of m-tuples.
+
+    Note that if the number of elements is less than m, the mean is returned.
+    """
+    mean = math.fsum(xs) / float(len(xs))
+    if len(xs) < m:
+        return mean
+    return m * mean
+
+
+class AverageMTupleSumTask(RegressionTask):
+    def __init__(self, m: int) -> None:
+        if m == 2:
             label = "average_pair_sum"
-        elif n == 3:
+        elif m == 3:
             label = "average_triple_sum"
         else:
-            label = f"average_{n}_tuple_sum"
-            
+            label = f"average_{m}_tuple_sum"
+
         super().__init__(label=label)
-        
-        self.n = n
-    
+
+        self.m = m
+
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
-        x_list = x.float().flatten().tolist()
-        while (len(x_list) < self.n):
-            x_list.append(self.padding_element())
-        
-        # print(f"x_list : {x_list}")
-        sum_set = sum(x_list)
-        combi = math.comb(len(x_list), self.n)
-        result = self.n * sum_set/combi
-        # print(f"Mean = {mean} \n combi = {combi} \n result = {result}\n Length = {len(x)}\n M = {self.n}\n------------------")
-        return torch.tensor(result, dtype=torch.float)
-    
+        label = avg_m_tuple_sum(x.float().flatten().tolist(), self.m)
+        return torch.tensor(label)
+
+    @property
     def padding_element(self) -> int:
         return 0
-    
+
 
 class ContainsEvenTask(ClassificationTask):
     def __init__(self) -> None:
@@ -219,6 +233,7 @@ class ContainsEvenTask(ClassificationTask):
         label = [0, 1] if contains_even else [1, 0]
         return torch.tensor(label, dtype=torch.float)
 
+    @property
     def padding_element(self) -> int:
         return 1
 
@@ -238,11 +253,11 @@ def get_task(task_config: TaskConfig) -> Task:
         "largest_contiguous_sum": LargestContiguousSumTask(),
         "largest_pair_sum": LargestNTupleSumTask(n=2),
         "largest_triple_sum": LargestNTupleSumTask(n=3),
-        "average_pair_sum": AverageNTupleSumTask(n=2),
-        "average_triple_sum": AverageNTupleSumTask(n=3),
-        "average_4_tuple_sum": AverageNTupleSumTask(n=4),
-        "average_5_tuple_sum": AverageNTupleSumTask(n=5),
-        "average_10_tuple_sum": AverageNTupleSumTask(n=10),
+        "average_pair_sum": AverageMTupleSumTask(m=2),
+        "average_triple_sum": AverageMTupleSumTask(m=3),
+        "average_4_tuple_sum": AverageMTupleSumTask(m=4),
+        "average_5_tuple_sum": AverageMTupleSumTask(m=5),
+        "average_10_tuple_sum": AverageMTupleSumTask(m=10),
         "contains_even": ContainsEvenTask(),
     }
 

@@ -1,7 +1,7 @@
 paths:
-  log: ${hydra:runtime.cwd}/../log
-  checkpoints: ${hydra:runtime.cwd}/../checkpoints
-  results: ${hydra:runtime.cwd}/../results
+  log: ${hydra:runtime.cwd}/log
+  checkpoints: ${hydra:runtime.cwd}/checkpoints
+  results: ${hydra:runtime.cwd}/results
 
 experiment:
   max_epochs: 500
@@ -19,13 +19,13 @@ experiment:
 model:
   type: deepsets_mlp_sum
   data_dim: 1
-  laten_dim: 8
+  laten_dim: 16
 
 task:
-  max_set_size: 8
+  max_set_size: 16
   min_value: -100
   max_value: 100
-  label: sum
+  label: average_10_tuple_sum
   multisets: True
 
 datasets:

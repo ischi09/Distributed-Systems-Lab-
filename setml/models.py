@@ -1,15 +1,12 @@
-from math import log, floor
+from typing import Callable
 
-from typing import Callable, List
-
-import numpy as np
 import torch
 import torch.nn as nn
 
-from config import Config
-from tasks import ClassificationTask, get_task
-from set_transformer.modules import SAB, PMA
-from fspool.fspool import FSPool
+from .config import Config
+from .tasks import ClassificationTask, get_task
+from .set_transformer.modules import SAB, PMA
+from .fspool.fspool import FSPool
 
 
 def count_parameters(model: nn.Module) -> int:
@@ -183,38 +180,54 @@ class DeepSetsInvariantFSPool(nn.Module):
         x = self.phi(x)  # x.shape = (batch_size, set_size, input_dim)
         # x.shape = (batch_size, latent_dim, set_size), as FSPool requires
         # set_dim last.
-        x = x.permute( (0, 2, 1))
+        x = x.permute((0, 2, 1))
         x, _ = self.pool(x, n=mask.sum(dim=1).squeeze(dim=-1))
         return self.rho(x)
 
+
 class GRUNet(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, 
-                output_dim: int,  n_layers: int, drop_prob=0.2):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        output_dim: int,
+        n_layers: int,
+        drop_prob=0.2,
+    ):
         super(GRUNet, self).__init__()
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
-        
-        self.gru = nn.GRU(input_dim, hidden_dim, n_layers, batch_first=True, drop_prob=drop_prob)
+
+        self.gru = nn.GRU(
+            input_dim,
+            hidden_dim,
+            n_layers,
+            batch_first=True,
+            drop_prob=drop_prob,
+        )
         self.fc = nn.Linear(hidden_dim, output_dim)
         # self.relu = nn.ReLu
-    
-    # Not hundred percent sure how i should handle the hidden states here. 
+
+    # Not hundred percent sure how i should handle the hidden states here.
     # Will need to pick one of these
     def forward(self, x) -> torch.Tensor:
         """Hidden state generated through Forward propagation"""
-        h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
+        h0 = torch.zeros(
+            self.n_layers, x.size(0), self.hidden_dim
+        ).requires_grad_()
         out, _ = self.gru(x, h0.detach())
-        
+
         # Need to reshape the output for the FC layer
         # This output in shape (batch_size, output_dim), probs need reshapeing
         return self.fc(out[:, -1, :])
-    
+
+
 # Code from another source which seems to handle the hidden layers differently
 #     def forward(self, x, h):
 #         out, h = self.gru(x, h)
 #         out = self.fc(self.relu(out[:,-1]))
 #         return out, h
-    
+
 #     def init_hidden(self, batch_size):
 #         weight = next(self.parameters()).data
 #         hidden = weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device)
@@ -222,38 +235,57 @@ class GRUNet(nn.Module):
 
 
 class LSTMNet(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, n_layers: int, drop_prob=0.2):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        output_dim: int,
+        n_layers: int,
+        drop_prob=0.2,
+    ):
         super(LSTMNet, self).__init__()
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
-        
-        self.lstm = nn.LSTM(input_dim, hidden_dim, n_layers, batch_first=True, dropout=drop_prob)
+
+        self.lstm = nn.LSTM(
+            input_dim,
+            hidden_dim,
+            n_layers,
+            batch_first=True,
+            dropout=drop_prob,
+        )
         self.fc = nn.Linear(hidden_dim, output_dim)
         # self.relu = nn.ReLU()
-        
+
     def forward(self, x) -> torch.Tensor:
         """Hidden State generated through Forward propagation again"""
-        h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
-        
-        c0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
+        h0 = torch.zeros(
+            self.n_layers, x.size(0), self.hidden_dim
+        ).requires_grad_()
+
+        c0 = torch.zeros(
+            self.n_layers, x.size(0), self.hidden_dim
+        ).requires_grad_()
         # Need to detach, otherwise we go all the way to the front
         out, (_, _) = self.lstm(x, (h0.detach(), c0.detach()))
-        
+
         # Need to reshape the output for the FC layer
         # This output in shape (batch_size, output_dim), probs need reshapeing
         return self.fc(out[:, -1, :])
-    
+
+
 # Code from another source which seems to handle the hidden layers differently
 #     def forward(self, x, h):
 #         out, h = self.lstm(x, h)
 #         out = self.fc(self.relu(out[:,-1]))
 #         return out, h
-    
+
 #     def init_hidden(self, batch_size):
 #         weight = next(self.parameters()).data
 #         hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device),
 #                   weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
 #         return hidden
+
 
 def build_model(config: Config, delta: float) -> nn.Module:
     model_config = config.model
@@ -312,14 +344,18 @@ def build_model(config: Config, delta: float) -> nn.Module:
         model = SmallSetTransformer(output_dim=output_dim)
     # TODO need to know how to handle the hidden dimension, n_layers and DROP PROBABLITY!! on initailisation.
     elif model_config.type == "lstm":
-        model = LSTMNet(input_dim=config.task.max_set_size, 
-                        hidden_dim=9, 
-                        output_dim=output_dim, 
-                        n_layers=9)
-        
+        model = LSTMNet(
+            input_dim=config.task.max_set_size,
+            hidden_dim=9,
+            output_dim=output_dim,
+            n_layers=9,
+        )
+
     elif model_config.type == "gru":
-        model = GRUNet(input_dim=config.task.max_set_size, 
-                       hidden_dim=9, 
-                       output_dim=output_dim, 
-                       n_layers=9)
+        model = GRUNet(
+            input_dim=config.task.max_set_size,
+            hidden_dim=9,
+            output_dim=output_dim,
+            n_layers=9,
+        )
     return model

@@ -4,10 +4,10 @@ import numpy as np
 import hydra
 import torch
 
-from config import Config
-from datasets import build_datasets
-from trainers import build_trainer
-from experiments import Experiment
+from setml.config import Config
+from setml.datasets import build_datasets
+from setml.trainers import build_trainer
+from setml.experiments import Experiment
 
 
 def set_random_seeds(seed: int) -> None:
@@ -17,9 +17,7 @@ def set_random_seeds(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-@hydra.main(
-    config_path=os.path.join(os.pardir, "config"), config_name="config"
-)
+@hydra.main(config_path=os.path.join("config"), config_name="config")
 def main(config: Config) -> None:
     set_random_seeds(config.experiment.random_seed)
 

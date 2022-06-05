@@ -15,8 +15,8 @@ from torch.utils.data.sampler import (
     SubsetRandomSampler,
 )
 
-from config import Config
-from tasks import Task, ClassificationTask, get_task
+from .config import Config
+from .tasks import Task, ClassificationTask, get_task
 
 
 def to_tensor(x: np.ndarray) -> torch.Tensor:
@@ -55,7 +55,7 @@ class SetDataset(Dataset):
         labels = np.array(labels_list)
 
         self._init_dataset_statistics(labels)
-        self.class_weights = torch.tensor([0,0])
+        self.class_weights = torch.tensor([0, 0])
         if isinstance(self.task, ClassificationTask):
             self._init_class_weights(labels)
 
@@ -74,7 +74,7 @@ class SetDataset(Dataset):
             # Generate the padding to the maximum size.
             padding_len = self.max_set_size - rand_set_size
             padding = np.broadcast_to(
-                self.task.padding_element(), (padding_len, data_dim)
+                self.task.padding_element, (padding_len, data_dim)
             )
 
             # Generate padded random set and padding mask.

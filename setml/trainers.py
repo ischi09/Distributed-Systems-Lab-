@@ -8,12 +8,12 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
-from config import Config
-from datasets import SetDataset, get_data_loader
-from tasks import get_task, is_classification_task
-from models import build_model
-from metrics import build_metrics_engine, print_metrics
-from log import build_summary_writer, get_model_subdir
+from .config import Config
+from .datasets import SetDataset, get_data_loader
+from .tasks import get_task, is_classification_task
+from .models import build_model
+from .metrics import build_metrics_engine, print_metrics
+from .log import build_summary_writer, get_model_subdir
 
 
 class Trainer:
