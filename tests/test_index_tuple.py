@@ -101,3 +101,14 @@ def test_build_m_tuples_length_values() -> None:
     # We don't care about the order, just that all elements are there.
     assert len(actual_tuples) == len(expected_tuples)
     assert set(actual_tuples) == set(expected_tuples)
+
+
+def test_build_m_tuples_too_few_values() -> None:
+    values = [5.0, 42.0, 0.0]
+    expected_tuples = []
+
+    actual_tuples = build_m_tuples(values, m=len(values) + 1)
+
+    # We don't care about the order, just that all elements are there.
+    assert len(actual_tuples) == len(expected_tuples)
+    assert set(actual_tuples) == set(expected_tuples)

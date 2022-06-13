@@ -261,7 +261,7 @@ class IndexTuple:
 
 
 def build_m_tuples(values: List[Any], m: int) -> List[Tuple[Any, ...]]:
-    if m < 1:
+    if m < 1 or len(values) < m:
         return []
 
     # Initialize with singletons.
@@ -287,62 +287,44 @@ def build_m_tuples(values: List[Any], m: int) -> List[Tuple[Any, ...]]:
 def decaying_avg_of_inv_exponentials(
     xs: Sequence[int], alpha: float, sigma: float
 ) -> float:
-    values = np.array(xs)
-    terms = sigma * np.exp(-values / sigma)
-    factors = alpha ** np.arange(len(terms))
-    return np.mean(factors * values).item()
+    """
+    Returns:
+        y = 1 / m sum_{j=1}^m alpha^{j - 1} * sigma * exp(-xs_j^2 / sigma)
+    """
+    terms = [
+        (alpha**j) * sigma * math.exp(-(xs_j**2) / sigma)
+        for j, xs_j in enumerate(xs)
+    ]
+    print(xs)
+    print(terms)
+    weighted_exp_sum = sum(terms)
+    return math.log(weighted_exp_sum / len(xs))
 
 
-class DesperateStudentPairTask(RegressionTask):
-    def __init__(self) -> None:
-        super().__init__(label="desperate_student_pair")
-
-    def generate_label(self, x: torch.Tensor) -> torch.Tensor:
-        values = x.flatten().tolist()
-        if len(values) > 2:
-            pair_labels = []
-            for i, v_i in enumerate(values):
-                for j, v_j in enumerate(values):
-                    if i != j:
-                        pair_labels.append(
-                            decaying_avg_of_inv_exponentials(
-                                [v_i, v_j], alpha=0.99, sigma=100
-                            )
-                        )
-            label = np.array(pair_labels).mean()
-        else:
-            label = decaying_avg_of_inv_exponentials(
-                values, alpha=0.99, sigma=100
-            )
-        return torch.tensor(label, dtype=torch.float)
-
-    @property
-    def padding_element(self) -> int:
-        return 0
-
-
-class DesperateStudentTripleTask(RegressionTask):
-    def __init__(self) -> None:
-        super().__init__(label="desperate_student_triple")
+class DesperateStudentMTupleTask(RegressionTask):
+    def __init__(self, m: int, alpha: float, sigma: float) -> None:
+        super().__init__(label=f"desperate_student_{m}_tuple")
+        self.m = m
+        self.alpha = alpha
+        self.sigma = sigma
 
     def generate_label(self, x: torch.Tensor) -> torch.Tensor:
         values = x.flatten().tolist()
-        if len(values) > 2:
-            triple_labels = []
-            for i, v_i in enumerate(values):
-                for j, v_j in enumerate(values):
-                    for k, v_k in enumerate(values):
-                        if i != j and j != k and i != k:
-                            triple_labels.append(
-                                decaying_avg_of_inv_exponentials(
-                                    [v_i, v_j, v_k], alpha=0.99, sigma=100
-                                )
-                            )
-            label = np.array(triple_labels).mean()
-        else:
-            label = decaying_avg_of_inv_exponentials(
-                values, alpha=0.99, sigma=100
+
+        if len(values) < self.m:
+            # Not enough values to build a single m-tuple, so pad to m.
+            values = values + [float(self.padding_element)] * (
+                self.m - len(values)
             )
+
+        tuples = build_m_tuples(values, m=self.m)
+        tuple_labels = [
+            decaying_avg_of_inv_exponentials(
+                tuple, alpha=self.alpha, sigma=self.sigma
+            )
+            for tuple in tuples
+        ]
+        label = sum(tuple_labels) / len(tuple_labels)
         return torch.tensor(label, dtype=torch.float)
 
     @property
@@ -371,8 +353,24 @@ def get_task(task_config: TaskConfig) -> Task:
         "average_5_tuple_sum": AverageMTupleSumTask(m=5),
         "average_10_tuple_sum": AverageMTupleSumTask(m=10),
         "contains_even": ContainsEvenTask(),
-        "desperate_student_pair": DesperateStudentPairTask(),
-        "desperate_student_triple": DesperateStudentTripleTask(),
+        "desperate_student_1_tuple": DesperateStudentMTupleTask(
+            m=1, alpha=0.99, sigma=100.0
+        ),
+        "desperate_student_2_tuple": DesperateStudentMTupleTask(
+            m=2, alpha=0.99, sigma=100.0
+        ),
+        "desperate_student_3_tuple": DesperateStudentMTupleTask(
+            m=3, alpha=0.99, sigma=100.0
+        ),
+        "desperate_student_4_tuple": DesperateStudentMTupleTask(
+            m=4, alpha=0.99, sigma=100.0
+        ),
+        "desperate_student_5_tuple": DesperateStudentMTupleTask(
+            m=5, alpha=0.99, sigma=100.0
+        ),
+        "desperate_student_6_tuple": DesperateStudentMTupleTask(
+            m=6, alpha=0.99, sigma=100.0
+        ),
     }
 
     return tasks[task_config.label]
