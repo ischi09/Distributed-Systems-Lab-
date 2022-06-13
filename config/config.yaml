@@ -25,7 +25,7 @@ task:
   max_set_size: 16
   min_value: -100
   max_value: 100
-  label: average_10_tuple_sum
+  label: desperate_student_triple
   multisets: True
 
 datasets:

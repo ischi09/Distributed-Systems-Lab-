@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 import math
-from typing import Callable, Sequence
+import copy
+from typing import Any, Callable, List, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -238,6 +240,116 @@ class ContainsEvenTask(ClassificationTask):
         return 1
 
 
+@dataclass
+class IndexTuple:
+    indices: List[int]
+    values: List[Any]
+
+    def is_valid(self) -> bool:
+        """Return true no indices are duplicate."""
+        return len(set(self.indices)) == len(self.indices)
+
+    def append(self, index: int, value: Any) -> None:
+        self.indices.append(index)
+        self.values.append(value)
+
+    def to_tuple(self) -> Tuple[Any, ...]:
+        return tuple(self.values)
+
+    def to_list(self) -> List[Any]:
+        return self.values
+
+
+def build_m_tuples(values: List[Any], m: int) -> List[Tuple[Any, ...]]:
+    if m < 1:
+        return []
+
+    # Initialize with singletons.
+    cur_index_tuples = [
+        IndexTuple(indices=[i], values=[v_i]) for i, v_i in enumerate(values)
+    ]
+    prev_index_tuples = cur_index_tuples
+
+    for _ in range(m - 1):
+        cur_index_tuples = []
+        for index_tuple in prev_index_tuples:
+            for i, v_i in enumerate(values):
+                new_index_tuple = copy.deepcopy(index_tuple)
+                new_index_tuple.append(i, v_i)
+                if new_index_tuple.is_valid():
+                    cur_index_tuples.append(new_index_tuple)
+
+        prev_index_tuples = cur_index_tuples
+
+    return [index_tuple.to_tuple() for index_tuple in cur_index_tuples]
+
+
+def decaying_avg_of_inv_exponentials(
+    xs: Sequence[int], alpha: float, sigma: float
+) -> float:
+    values = np.array(xs)
+    terms = sigma * np.exp(-values / sigma)
+    factors = alpha ** np.arange(len(terms))
+    return np.mean(factors * values).item()
+
+
+class DesperateStudentPairTask(RegressionTask):
+    def __init__(self) -> None:
+        super().__init__(label="desperate_student_pair")
+
+    def generate_label(self, x: torch.Tensor) -> torch.Tensor:
+        values = x.flatten().tolist()
+        if len(values) > 2:
+            pair_labels = []
+            for i, v_i in enumerate(values):
+                for j, v_j in enumerate(values):
+                    if i != j:
+                        pair_labels.append(
+                            decaying_avg_of_inv_exponentials(
+                                [v_i, v_j], alpha=0.99, sigma=100
+                            )
+                        )
+            label = np.array(pair_labels).mean()
+        else:
+            label = decaying_avg_of_inv_exponentials(
+                values, alpha=0.99, sigma=100
+            )
+        return torch.tensor(label, dtype=torch.float)
+
+    @property
+    def padding_element(self) -> int:
+        return 0
+
+
+class DesperateStudentTripleTask(RegressionTask):
+    def __init__(self) -> None:
+        super().__init__(label="desperate_student_triple")
+
+    def generate_label(self, x: torch.Tensor) -> torch.Tensor:
+        values = x.flatten().tolist()
+        if len(values) > 2:
+            triple_labels = []
+            for i, v_i in enumerate(values):
+                for j, v_j in enumerate(values):
+                    for k, v_k in enumerate(values):
+                        if i != j and j != k and i != k:
+                            triple_labels.append(
+                                decaying_avg_of_inv_exponentials(
+                                    [v_i, v_j, v_k], alpha=0.99, sigma=100
+                                )
+                            )
+            label = np.array(triple_labels).mean()
+        else:
+            label = decaying_avg_of_inv_exponentials(
+                values, alpha=0.99, sigma=100
+            )
+        return torch.tensor(label, dtype=torch.float)
+
+    @property
+    def padding_element(self) -> int:
+        return 0
+
+
 def get_task(task_config: TaskConfig) -> Task:
     n_classes = len(
         np.arange(task_config.min_value, task_config.max_value + 1)
@@ -259,6 +371,8 @@ def get_task(task_config: TaskConfig) -> Task:
         "average_5_tuple_sum": AverageMTupleSumTask(m=5),
         "average_10_tuple_sum": AverageMTupleSumTask(m=10),
         "contains_even": ContainsEvenTask(),
+        "desperate_student_pair": DesperateStudentPairTask(),
+        "desperate_student_triple": DesperateStudentTripleTask(),
     }
 
     return tasks[task_config.label]
