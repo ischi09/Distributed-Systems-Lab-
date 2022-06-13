@@ -295,8 +295,6 @@ def decaying_avg_of_inv_exponentials(
         (alpha**j) * sigma * math.exp(-(xs_j**2) / sigma)
         for j, xs_j in enumerate(xs)
     ]
-    print(xs)
-    print(terms)
     weighted_exp_sum = sum(terms)
     return math.log(weighted_exp_sum / len(xs))
 
