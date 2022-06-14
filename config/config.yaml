@@ -17,7 +17,7 @@ experiment:
   results_out: results.csv
 
 model:
-  type: deepsets_mlp_sum
+  type: gru
   data_dim: 1
   laten_dim: 8
 

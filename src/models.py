@@ -194,20 +194,21 @@ class GRUNet(nn.Module):
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
         
-        self.gru = nn.GRU(input_dim, hidden_dim, n_layers, batch_first=True, drop_prob=drop_prob)
+        self.gru = nn.GRU(input_dim, hidden_dim, n_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_dim)
         # self.relu = nn.ReLu
     
     # Not hundred percent sure how i should handle the hidden states here. 
     # Will need to pick one of these
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x, mask) -> torch.Tensor:
         """Hidden state generated through Forward propagation"""
         h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
         out, _ = self.gru(x, h0.detach())
         
         # Need to reshape the output for the FC layer
         # This output in shape (batch_size, output_dim), probs need reshapeing
-        return self.fc(out[:, -1, :])
+        final = self.fc(out[:, -1, :])
+        return final
     
 # Code from another source which seems to handle the hidden layers differently
 #     def forward(self, x, h):
