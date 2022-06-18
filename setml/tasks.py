@@ -1,6 +1,4 @@
-from dataclasses import dataclass
 import math
-import copy
 from typing import Any, Callable, List, Sequence, Tuple
 
 import numpy as np
@@ -240,24 +238,32 @@ class ContainsEvenTask(ClassificationTask):
         return 1
 
 
-@dataclass
 class IndexTuple:
-    indices: List[int]
-    values: List[Any]
+    __slots__ = ["indices", "values"]
+    indices: Tuple[int, ...]
+    values: Tuple[Any, ...]
+
+    def __init__(self, indices: Sequence[int], values: Sequence[Any]) -> None:
+        self.indices = tuple(indices)
+        self.values = tuple(values)
 
     def is_valid(self) -> bool:
         """Return true no indices are duplicate."""
         return len(set(self.indices)) == len(self.indices)
 
+    def would_be_valid(self, index: int) -> bool:
+        """Return true if IndexTuple would be valid if element at index were appended."""
+        return index not in self.indices
+
     def append(self, index: int, value: Any) -> None:
-        self.indices.append(index)
-        self.values.append(value)
+        self.indices += (index,)
+        self.values += (value,)
 
     def to_tuple(self) -> Tuple[Any, ...]:
-        return tuple(self.values)
+        return self.values
 
     def to_list(self) -> List[Any]:
-        return self.values
+        return list(self.values)
 
 
 def build_m_tuples(values: List[Any], m: int) -> List[Tuple[Any, ...]]:
@@ -274,10 +280,13 @@ def build_m_tuples(values: List[Any], m: int) -> List[Tuple[Any, ...]]:
         cur_index_tuples = []
         for index_tuple in prev_index_tuples:
             for i, v_i in enumerate(values):
-                new_index_tuple = copy.deepcopy(index_tuple)
-                new_index_tuple.append(i, v_i)
-                if new_index_tuple.is_valid():
-                    cur_index_tuples.append(new_index_tuple)
+                if index_tuple.would_be_valid(index=i):
+                    cur_index_tuples.append(
+                        IndexTuple(
+                            indices=index_tuple.indices + (i,),
+                            values=index_tuple.values + (v_i,),
+                        )
+                    )
 
         prev_index_tuples = cur_index_tuples
 

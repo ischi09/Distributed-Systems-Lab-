@@ -18,6 +18,13 @@ def test_index_tuple_is_valid() -> None:
     assert not invalid_tuple_2.is_valid()
 
 
+def test_index_tuple_would_be_valid() -> None:
+    tuple_1 = IndexTuple(indices=[1, 14], values=[23, 23])
+
+    assert tuple_1.would_be_valid(index=12)
+    assert not tuple_1.would_be_valid(index=1)
+
+
 def test_index_tuple_append() -> None:
     expected_tuple = (2, 78, 42)
 
