@@ -50,10 +50,14 @@ class TorchTrainer(Trainer):
         os.makedirs(model_dir, exist_ok=True)
         self.best_model_filename = os.path.join(model_dir, "best_model.pth")
 
-        self.optimizer = optim.Adam(
+        self.optimizer = optim.AdamW(
             self.model.parameters(),
             lr=config.experiment.lr,
             weight_decay=config.experiment.weight_decay,
+        )
+
+        self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer=self.optimizer, factor=0.1, patience=5
         )
 
         task = get_task(config.task)
@@ -104,6 +108,11 @@ class TorchTrainer(Trainer):
                 epoch_counter=epoch_counter,
             )
             print(f"Average validation loss: {avg_valid_loss}")
+
+            self.lr_scheduler.step(avg_valid_loss)
+            print("=== Parameters ===")
+            print(f"lr: {self.optimizer.param_groups[0]['lr']}")
+
             print_metrics(valid_metrics)
 
             if self._has_loss_improved(best_valid_loss, avg_valid_loss):

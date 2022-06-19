@@ -1,3 +1,4 @@
+from turtle import forward
 from typing import Callable
 
 import torch
@@ -287,6 +288,41 @@ class LSTMNet(nn.Module):
 #         return hidden
 
 
+class DeepSetsDs1t(nn.Module):
+    """
+    DeepSets model optimized for Desperate Student 1 Tuple task.
+    """
+
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+        super(DeepSetsDs1t, self).__init__()
+
+        self.phi = nn.Sequential(
+            nn.Linear(input_dim, 30),
+            nn.ELU(inplace=True),
+            nn.Linear(30, 50),
+            nn.ELU(inplace=True),
+            nn.Linear(50, 50),
+            nn.ELU(inplace=True),
+            nn.Linear(50, hidden_dim),
+        )
+
+        self.rho = nn.Sequential(
+            nn.Linear(hidden_dim, 50),
+            nn.ELU(inplace=True),
+            nn.Linear(50, 30),
+            nn.ELU(inplace=True),
+            nn.Linear(30, 10),
+            nn.ELU(inplace=True),
+            nn.Linear(10, output_dim),
+        )
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        # x.shape = [batch_size, set_size, input_dim]
+        x = self.phi(x)
+        x = masked_sum(x, mask)
+        return self.rho(x)
+
+
 def build_model(config: Config, delta: float) -> nn.Module:
     model_config = config.model
     task = get_task(config.task)
@@ -350,12 +386,17 @@ def build_model(config: Config, delta: float) -> nn.Module:
             output_dim=output_dim,
             n_layers=9,
         )
-
     elif model_config.type == "gru":
         model = GRUNet(
             input_dim=config.task.max_set_size,
             hidden_dim=9,
             output_dim=output_dim,
             n_layers=9,
+        )
+    elif model_config.type == "deepsets_ds1t":
+        model = DeepSetsDs1t(
+            input_dim=config.model.data_dim,
+            hidden_dim=config.model.laten_dim,
+            output_dim=config.model.data_dim,
         )
     return model
