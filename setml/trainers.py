@@ -57,7 +57,7 @@ class TorchTrainer(Trainer):
         )
 
         self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer=self.optimizer, factor=0.1, patience=5
+            optimizer=self.optimizer, factor=0.75, patience=5
         )
 
         task = get_task(config.task)
