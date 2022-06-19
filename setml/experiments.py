@@ -5,6 +5,8 @@ from typing import Any, List, Dict
 
 import pandas as pd
 
+import torch
+
 from .config import Config
 from .datasets import SetDataset
 from .tasks import get_task
@@ -62,6 +64,9 @@ class Experiment:
         experiment_info = self.config.experiment._content
         task = get_task(self.config.task)
         experiment_info["loss"] = task.loss
+        experiment_info["gpu_enabled"] = (
+            self.config.experiment.use_gpu and torch.cuda.is_available()
+        )
 
         print("*** Experiment Setup ***")
 

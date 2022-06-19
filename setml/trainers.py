@@ -37,9 +37,8 @@ class TorchTrainer(Trainer):
     ) -> None:
         super().__init__()
 
-        self.device = torch.device(
-            "cuda" if config.experiment.use_gpu else "cpu"
-        )
+        use_gpu = config.experiment.use_gpu and torch.cuda.is_available()
+        self.device = torch.device("cuda" if use_gpu else "cpu")
 
         self.config = config
 

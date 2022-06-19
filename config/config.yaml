@@ -13,7 +13,7 @@ experiment:
   weight_decay: 5e-3
   grad_norm_threshold: 10.0
   use_batch_sampler: False
-  use_gpu: False
+  use_gpu: True
   results_out: results.csv
 
 model:
