@@ -2,6 +2,7 @@ paths:
   log: ${hydra:runtime.cwd}/log
   checkpoints: ${hydra:runtime.cwd}/checkpoints
   results: ${hydra:runtime.cwd}/results
+  datasets: ${hydra:runtime.cwd}/datasets
 
 experiment:
   max_epochs: 500
@@ -34,3 +35,5 @@ datasets:
   train_samples: 10000
   valid_samples: 1000
   test_samples: 1000
+  cache: True
+  use_cached: True

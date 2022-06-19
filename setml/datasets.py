@@ -1,5 +1,9 @@
+import os
 import random
 from functools import partial
+import gzip
+import enum
+from dataclasses import dataclass
 
 from typing import Callable, List, Tuple, Iterator, Dict
 
@@ -261,7 +265,61 @@ def sample_contains_even_set(
     return rand_set
 
 
-def build_datasets(config: Config):
+@dataclass
+class DatasetsCacheConfig:
+    directory: str
+    train_set_file: str
+    valid_set_file: str
+    test_set_file: str
+
+    @property
+    def train_set_path(self) -> str:
+        return os.path.join(self.directory, self.train_set_file)
+
+    @property
+    def valid_set_path(self) -> str:
+        return os.path.join(self.directory, self.valid_set_file)
+
+    @property
+    def test_set_path(self) -> str:
+        return os.path.join(self.directory, self.test_set_file)
+
+
+def build_datasets_cache_config(config: Config) -> DatasetsCacheConfig:
+    dir_parts: List[str] = []
+    dir_parts.append(config.task.label.replace("_", "-"))
+    dir_parts.append(f"maxset-{config.task.max_set_size}")
+    dir_parts.append(f"min-{config.task.min_value}")
+    dir_parts.append(f"max-{config.task.max_value}")
+    dir_parts.append(f"multi-{config.task.multisets}")
+    dir_parts.append(f"rs-{config.experiment.random_seed}")
+    directory = "-".join(dir_parts)
+    directory = directory.lower()
+
+    cache_config = DatasetsCacheConfig(
+        directory=os.path.join(config.paths.datasets, directory),
+        train_set_file=f"train-{config.datasets.train_samples}-samples.pt.gz",
+        valid_set_file=f"valid-{config.datasets.valid_samples}-samples.pt.gz",
+        test_set_file=f"test-{config.datasets.test_samples}-samples.pt.gz",
+    )
+
+    return cache_config
+
+
+def save_set_dataset(dataset: SetDataset, path: str) -> None:
+    with gzip.open(path, "wb") as f:
+        torch.save(dataset, f=f)
+
+
+def load_set_dataset(path: str) -> SetDataset:
+    with gzip.open(path, "rb") as f:
+        dataset = torch.load(f=f)
+    return dataset
+
+
+def generate_datasets(
+    config: Config,
+) -> Tuple[SetDataset, SetDataset, SetDataset]:
     if config.task.label == "longest_seq_length":
         sample_set = sample_longest_len_set
     if (
@@ -305,6 +363,39 @@ def build_datasets(config: Config):
         sample_set=sample_set,
         task=task,
     )
+
+    return train_set, valid_set, test_set
+
+
+def build_datasets(
+    config: Config,
+) -> Tuple[SetDataset, SetDataset, SetDataset]:
+    cache_config = build_datasets_cache_config(config)
+
+    dataset_files_exist = all(
+        [
+            os.path.isfile(path)
+            for path in [
+                cache_config.train_set_path,
+                cache_config.valid_set_path,
+                cache_config.test_set_path,
+            ]
+        ]
+    )
+
+    if config.datasets.use_cached and dataset_files_exist:
+        train_set = load_set_dataset(cache_config.train_set_path)
+        valid_set = load_set_dataset(cache_config.valid_set_path)
+        test_set = load_set_dataset(cache_config.test_set_path)
+    else:
+        train_set, valid_set, test_set = generate_datasets(config)
+
+    if config.datasets.cache and not dataset_files_exist:
+        os.makedirs(cache_config.directory, exist_ok=True)
+
+        save_set_dataset(train_set, cache_config.train_set_path)
+        save_set_dataset(valid_set, cache_config.valid_set_path)
+        save_set_dataset(test_set, cache_config.test_set_path)
 
     return train_set, valid_set, test_set
 

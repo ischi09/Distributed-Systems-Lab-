@@ -8,6 +8,7 @@ log/
 outputs/
 checkpoints/
 results/
+datasets/
 
 # Sweep directory
 multirun/

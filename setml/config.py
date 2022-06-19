@@ -6,6 +6,7 @@ class Paths:
     log: str
     checkpoints: str
     results: str
+    datasets: str
 
 
 @dataclass
@@ -46,6 +47,8 @@ class Datasets:
     train_samples: int
     valid_samples: int
     test_samples: int
+    cache: bool
+    use_cached: bool
 
 
 @dataclass
