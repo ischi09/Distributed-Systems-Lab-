@@ -18,6 +18,8 @@ class Experiment:
     random_seed: int
     weight_decay: float
     grad_norm_threshold: float
+    lr_scheduler_factor: float
+    lr_scheduler_patience: int
     use_batch_sampler: bool
     use_gpu: bool
     results_out: str

@@ -12,6 +12,8 @@ experiment:
   random_seed: 99
   weight_decay: 5e-3
   grad_norm_threshold: 10.0
+  lr_scheduler_factor: 0.75
+  lr_scheduler_patience: 5
   use_batch_sampler: False
   use_gpu: True
   results_out: results.csv
