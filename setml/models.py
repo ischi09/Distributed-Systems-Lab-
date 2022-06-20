@@ -1,6 +1,7 @@
-from turtle import forward
-from typing import Callable
+from typing import Callable, Union
 
+import sklearn
+from sklearn.dummy import DummyRegressor
 import torch
 import torch.nn as nn
 
@@ -323,7 +324,9 @@ class DeepSetsDs1t(nn.Module):
         return self.rho(x)
 
 
-def build_model(config: Config, delta: float) -> nn.Module:
+def build_model(
+    config: Config, delta: float
+) -> Union[nn.Module, sklearn.base.BaseEstimator]:
     model_config = config.model
     task = get_task(config.task)
 
@@ -399,4 +402,6 @@ def build_model(config: Config, delta: float) -> nn.Module:
             hidden_dim=config.model.laten_dim,
             output_dim=config.model.data_dim,
         )
+    elif model_config.type == "mean_baseline":
+        model = DummyRegressor()
     return model

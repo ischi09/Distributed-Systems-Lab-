@@ -4,6 +4,7 @@ from typing import Dict, Tuple
 
 from tqdm import tqdm
 
+import sklearn
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
@@ -288,9 +289,76 @@ class TorchTrainer(Trainer):
         return self.config.experiment.min_delta < best_loss - new_loss
 
 
+class SklearnTrainer(Trainer):
+    def __init__(
+        self, config: Config, model: sklearn.base.BaseEstimator
+    ) -> None:
+        self.model = model
+        self.metrics_engine = build_metrics_engine(config.task)
+
+    def train(
+        self, train_set: SetDataset, valid_set: SetDataset
+    ) -> Dict[str, float]:
+        print("Training model...")
+        X_train, y_train = train_set.to_sklearn()
+        self.model.fit(X_train, y_train)
+        y_train_pred = self.model.predict(X_train)
+
+        self.metrics_engine.reset()
+        self.metrics_engine.accumulate_predictions(
+            labels=torch.from_numpy(y_train),
+            preds=torch.from_numpy(y_train_pred),
+        )
+        train_metrics = self.metrics_engine.compute_metrics()
+        print_metrics(train_metrics)
+
+        print("\nValidating model...")
+        X_valid, y_valid = valid_set.to_sklearn()
+        y_valid_pred = self.model.predict(X_valid)
+
+        self.metrics_engine.reset()
+        self.metrics_engine.accumulate_predictions(
+            labels=torch.from_numpy(y_valid),
+            preds=torch.from_numpy(y_valid_pred),
+        )
+        valid_metrics = self.metrics_engine.compute_metrics()
+        print_metrics(valid_metrics)
+
+        return {
+            "epochs": 1,
+            "avg_train_loss": train_metrics["mse"],
+            "best_valid_loss": valid_metrics["mse"],
+        }
+
+    def test(self, test_set: SetDataset) -> Dict[str, float]:
+        print("\nTesting model...")
+
+        X_test, y_test = test_set.to_sklearn()
+        y_test_pred = self.model.predict(X_test)
+
+        self.metrics_engine.reset()
+        self.metrics_engine.accumulate_predictions(
+            labels=torch.from_numpy(y_test),
+            preds=torch.from_numpy(y_test_pred),
+        )
+        test_metrics = self.metrics_engine.compute_metrics()
+        print_metrics(test_metrics)
+
+        test_metrics = {
+            f"test_{name}": metric for name, metric in test_metrics.items()
+        }
+        test_metrics.update({"avg_test_loss": test_metrics["test_mse"]})
+        return test_metrics
+
+
 def build_trainer(config: Config, delta: float) -> Trainer:
     model = build_model(
         config=config,
         delta=delta,
     )
-    return TorchTrainer(config=config, model=model)
+    if "baseline" in config.model.type:
+        trainer = SklearnTrainer(config=config, model=model)
+    else:
+        trainer = TorchTrainer(config=config, model=model)
+
+    return trainer

@@ -51,7 +51,10 @@ class Experiment:
 
     def _init_results_logging(self) -> None:
         model_info = self.config.model._content
-        model_info["n_params"] = count_parameters(self.trainer.model)
+        if "baseline" in self.config.model.type:
+            model_info["n_params"] = 0
+        else:
+            model_info["n_params"] = count_parameters(self.trainer.model)
 
         task_info = self.config.task._content
 

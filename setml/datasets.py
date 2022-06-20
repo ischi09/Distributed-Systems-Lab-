@@ -2,7 +2,6 @@ import os
 import random
 from functools import partial
 import gzip
-import enum
 from dataclasses import dataclass
 
 from typing import Callable, List, Tuple, Iterator, Dict
@@ -62,6 +61,12 @@ class SetDataset(Dataset):
         self.class_weights = torch.tensor([0, 0])
         if isinstance(self.task, ClassificationTask):
             self._init_class_weights(labels)
+
+    def to_sklearn(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Convert dataset to X, y format ready for sklearn models."""
+        X = np.array([values.tolist() for values, _, _ in self.sets])
+        y = np.array([float(label) for _, _, label in self.sets])
+        return X, y
 
     def _init_samples(self) -> None:
         for i in range(self.n_samples):
