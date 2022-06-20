@@ -399,7 +399,7 @@ def build_model(
     elif model_config.type == "deepsets_ds1t":
         model = DeepSetsDs1t(
             input_dim=config.model.data_dim,
-            hidden_dim=config.model.laten_dim,
+            hidden_dim=config.model.latent_dim,
             output_dim=config.model.data_dim,
         )
     elif model_config.type == "mean_baseline":

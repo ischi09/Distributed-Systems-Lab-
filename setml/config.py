@@ -30,7 +30,7 @@ class Experiment:
 class Model:
     type: str
     data_dim: int
-    laten_dim: int
+    latent_dim: int
 
 
 @dataclass

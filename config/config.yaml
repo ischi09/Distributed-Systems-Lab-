@@ -22,7 +22,7 @@ experiment:
 model:
   type: deepsets_ds1t
   data_dim: 1
-  laten_dim: 5
+  latent_dim: 5
 
 task:
   max_set_size: 10
