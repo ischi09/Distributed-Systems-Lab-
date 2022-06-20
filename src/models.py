@@ -1,4 +1,5 @@
 from math import log, floor
+from turtle import forward
 
 from typing import Callable, List
 
@@ -193,22 +194,46 @@ class GRUNet(nn.Module):
         super(GRUNet, self).__init__()
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
-        
+        # self.input_dim = input_dim
+        # self.output_dim = output_dim
         self.gru = nn.GRU(input_dim, hidden_dim, n_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_dim)
+    
         # self.relu = nn.ReLu
     
     # Not hundred percent sure how i should handle the hidden states here. 
     # Will need to pick one of these
     def forward(self, x, mask) -> torch.Tensor:
         """Hidden state generated through Forward propagation"""
-        h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
-        out, _ = self.gru(x, h0.detach())
         
+        # print("hidden dim:", self.hidden_dim)
+        # print("n_layers:", self.n_layers)
+        # print("input_dim:", self.input_dim)
+        # print("output_dim:", self.output_dim)
+        # print("X shape", x.shape)
+        # print("mask shape", mask.shape)
+        
+        h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
+        # print("H0 shape", h0.shape)
+        packed_input = torch.nn.utils.rnn.pack_padded_sequence(x, mask.sum(axis=1), batch_first=True, enforce_sorted=False)
+        out, _ = self.gru(packed_input, h0.detach())
+        # print("out shape", out)
         # Need to reshape the output for the FC layer
         # This output in shape (batch_size, output_dim), probs need reshapeing
         final = self.fc(out[:, -1, :])
+        # print("Final shape", final)
         return final
+    
+
+class SortedGRU(GRUNet):
+    def __init__(self, input_dim: int, hidden_dim: int, 
+                output_dim: int,  n_layers: int):
+        super(SortedGRU, self).__init__(input_dim=input_dim, hidden_dim=hidden_dim, 
+                                        output_dim=output_dim, n_layers=n_layers)
+    
+    def forward(self, x, mask)  -> torch.Tensor:
+        x, _ = torch.sort(x, dim=1)
+        return super(SortedGRU, self).forward(x, mask)
     
 # Code from another source which seems to handle the hidden layers differently
 #     def forward(self, x, h):
@@ -232,7 +257,7 @@ class LSTMNet(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_dim)
         # self.relu = nn.ReLU()
         
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x, mask) -> torch.Tensor:
         """Hidden State generated through Forward propagation again"""
         h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).requires_grad_()
         
@@ -244,6 +269,15 @@ class LSTMNet(nn.Module):
         # This output in shape (batch_size, output_dim), probs need reshapeing
         return self.fc(out[:, -1, :])
     
+class SortedLSTM(LSTMNet):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, 
+                 n_layers: int, drop_prob=0.2):
+        super(SortedLSTM, self).__init__(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, 
+                                         n_layers=n_layers, drop_prob=drop_prob)
+    
+    def forward(self, x, mask)  -> torch.Tensor:
+        x, _ = torch.sort(x, dim=1)
+        return super(SortedLSTM, self).forward(x, mask)
 # Code from another source which seems to handle the hidden layers differently
 #     def forward(self, x, h):
 #         out, h = self.lstm(x, h)
@@ -313,14 +347,26 @@ def build_model(config: Config, delta: float) -> nn.Module:
         model = SmallSetTransformer(output_dim=output_dim)
     # TODO need to know how to handle the hidden dimension, n_layers and DROP PROBABLITY!! on initailisation.
     elif model_config.type == "lstm":
-        model = LSTMNet(input_dim=config.task.max_set_size, 
-                        hidden_dim=9, 
+        model = LSTMNet(input_dim=config.model.data_dim, 
+                        hidden_dim=config.model.laten_dim, 
+                        output_dim=output_dim, 
+                        n_layers=9)
+        
+    elif model_config.type == "sorted_lstm":
+        model = SortedLSTM(input_dim=config.model.data_dim, 
+                        hidden_dim=config.model.laten_dim, 
                         output_dim=output_dim, 
                         n_layers=9)
         
     elif model_config.type == "gru":
-        model = GRUNet(input_dim=config.task.max_set_size, 
-                       hidden_dim=9, 
+        model = GRUNet(input_dim=config.model.data_dim, 
+                       hidden_dim=config.model.laten_dim, 
                        output_dim=output_dim, 
                        n_layers=9)
+        
+    elif model_config.type == "sorted_gru":
+        model = SortedGRU(input_dim=config.model.data_dim, 
+                       hidden_dim=config.model.laten_dim, 
+                       output_dim=output_dim, 
+                       n_layers=2)
     return model

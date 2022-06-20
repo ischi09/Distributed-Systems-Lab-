@@ -5,7 +5,7 @@ paths:
 
 experiment:
   max_epochs: 500
-  patience: 15
+  patience: 5
   min_delta: 1e-9
   lr: 0.001
   batch_size: 64
@@ -19,7 +19,7 @@ experiment:
 model:
   type: gru
   data_dim: 1
-  laten_dim: 8
+  laten_dim: 10
 
 task:
   max_set_size: 8
