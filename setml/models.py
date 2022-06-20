@@ -324,6 +324,30 @@ class DeepSetsDs1t(nn.Module):
         return self.rho(x)
 
 
+class SortedMlpDs1t(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int):
+        super().__init__()
+
+        self.mlp = nn.Sequential(
+            nn.Linear(input_dim, 30),
+            nn.ELU(inplace=True),
+            nn.Linear(30, 90),
+            nn.ELU(inplace=True),
+            nn.Linear(90, 90),
+            nn.ELU(inplace=True),
+            nn.Linear(90, 30),
+            nn.ELU(inplace=True),
+            nn.Linear(30, 10),
+            nn.ELU(inplace=True),
+            nn.Linear(10, output_dim),
+        )
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        x, _ = torch.sort(x, dim=1)
+        x = x.squeeze(-1)
+        return self.mlp(x)
+
+
 def build_model(
     config: Config, delta: float
 ) -> Union[nn.Module, sklearn.base.BaseEstimator]:
@@ -401,6 +425,11 @@ def build_model(
             input_dim=config.model.data_dim,
             hidden_dim=config.model.latent_dim,
             output_dim=config.model.data_dim,
+        )
+    elif model_config.type == "sorted_mlp_ds1t":
+        model = SortedMlpDs1t(
+            input_dim=config.task.max_set_size,
+            output_dim=output_dim,
         )
     elif model_config.type == "mean_baseline":
         model = DummyRegressor()

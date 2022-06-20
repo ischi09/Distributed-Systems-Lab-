@@ -20,7 +20,7 @@ experiment:
   results_out: results.csv
 
 model:
-  type: deepsets_ds1t
+  type: sorted_mlp_ds1t
   data_dim: 1
   latent_dim: 5
 
