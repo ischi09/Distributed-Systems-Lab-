@@ -348,6 +348,55 @@ class SortedMlpDs1t(nn.Module):
         return self.mlp(x)
 
 
+class PnaDs1t(nn.Module):
+    def __init__(self, output_dim: int, delta: float):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(12, 30),
+            nn.ELU(inplace=True),
+            nn.Linear(30, 90),
+            nn.ELU(inplace=True),
+            nn.Linear(90, 90),
+            nn.ELU(inplace=True),
+            nn.Linear(90, 30),
+            nn.ELU(inplace=True),
+            nn.Linear(30, 10),
+            nn.ELU(inplace=True),
+            nn.Linear(10, output_dim),
+        )
+        self.delta = delta
+
+    def scale_amplification(
+        self, x: torch.Tensor, mask: torch.Tensor
+    ) -> torch.Tensor:
+        scale = torch.log(mask.sum(dim=1) + 1) / self.delta
+        return x * scale
+
+    def scale_attenuation(
+        self, x: torch.Tensor, mask: torch.Tensor
+    ) -> torch.Tensor:
+        scale = self.delta / torch.log(mask.sum(dim=1) + 1)
+        return x * scale
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        # Aggregration
+        mean = ACCUMLATORS["mean"](x, mask)
+        agg_max = ACCUMLATORS["max"](x, mask)
+        agg_min = ACCUMLATORS["min"](x, mask)
+        std = ACCUMLATORS["std"](x, mask)
+
+        aggr_concat = torch.cat((mean, agg_max, agg_min, std), dim=1)
+
+        # Scaling
+        identity = aggr_concat
+        amplification = self.scale_amplification(aggr_concat, mask)
+        attenuation = self.scale_attenuation(aggr_concat, mask)
+
+        scale_concat = torch.cat((identity, amplification, attenuation), dim=1)
+
+        return self.mlp(scale_concat)
+
+
 def build_model(
     config: Config, delta: float
 ) -> Union[nn.Module, sklearn.base.BaseEstimator]:
@@ -430,6 +479,11 @@ def build_model(
         model = SortedMlpDs1t(
             input_dim=config.task.max_set_size,
             output_dim=output_dim,
+        )
+    elif model_config.type == "pna_ds1t":
+        model = PnaDs1t(
+            output_dim=output_dim,
+            delta=delta,
         )
     elif model_config.type == "mean_baseline":
         model = DummyRegressor()

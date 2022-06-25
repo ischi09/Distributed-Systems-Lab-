@@ -13,7 +13,7 @@ from .config import Config
 from .datasets import SetDataset, get_data_loader
 from .tasks import get_task, is_classification_task
 from .models import build_model
-from .metrics import build_metrics_engine, print_metrics
+from .metrics import build_metrics_engine, print_metrics, mean_baseline_mae
 from .log import build_summary_writer, get_model_subdir
 
 
@@ -35,6 +35,7 @@ class TorchTrainer(Trainer):
         self,
         config: Config,
         model: torch.nn.Module,
+        train_set: SetDataset,
     ) -> None:
         super().__init__()
 
@@ -66,7 +67,9 @@ class TorchTrainer(Trainer):
         self.loss_fn = task.loss_fn
         self.is_classification_task = is_classification_task(config.task)
 
-        self.metrics_engine = build_metrics_engine(config.task)
+        self.metrics_engine = build_metrics_engine(
+            config.task, train_baseline_mae=mean_baseline_mae(train_set)
+        )
 
         self.summary_writer = build_summary_writer(config)
 
@@ -291,10 +294,16 @@ class TorchTrainer(Trainer):
 
 class SklearnTrainer(Trainer):
     def __init__(
-        self, config: Config, model: sklearn.base.BaseEstimator
+        self,
+        config: Config,
+        model: sklearn.base.BaseEstimator,
+        train_set: SetDataset,
     ) -> None:
+        super().__init__()
         self.model = model
-        self.metrics_engine = build_metrics_engine(config.task)
+        self.metrics_engine = build_metrics_engine(
+            config.task, train_baseline_mae=mean_baseline_mae(train_set)
+        )
 
     def train(
         self, train_set: SetDataset, valid_set: SetDataset
@@ -351,14 +360,16 @@ class SklearnTrainer(Trainer):
         return test_metrics
 
 
-def build_trainer(config: Config, delta: float) -> Trainer:
+def build_trainer(config: Config, train_set: SetDataset) -> Trainer:
     model = build_model(
         config=config,
-        delta=delta,
+        delta=train_set.delta,
     )
     if "baseline" in config.model.type:
-        trainer = SklearnTrainer(config=config, model=model)
+        trainer = SklearnTrainer(
+            config=config, model=model, train_set=train_set
+        )
     else:
-        trainer = TorchTrainer(config=config, model=model)
+        trainer = TorchTrainer(config=config, model=model, train_set=train_set)
 
     return trainer

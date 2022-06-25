@@ -1,6 +1,6 @@
 from functools import partial
 
-from typing import Dict, Callable, List, Tuple
+from typing import Dict, Callable, List, Tuple, Optional
 
 import numpy as np
 from sklearn.metrics import (
@@ -19,9 +19,11 @@ from sklearn.metrics import (
 import torch
 
 from .config import Task as TaskConfig
+from .datasets import SetDataset
 from .tasks import is_classification_task
 
-MetricFn = Callable[[np.ndarray, np.ndarray], float]
+MetricFn = Callable[[np.ndarray, np.ndarray], np.float64]
+CollateFn = Callable[[List[np.ndarray]], np.ndarray]
 
 
 def print_metrics(metrics: Dict[str, float]) -> None:
@@ -30,13 +32,81 @@ def print_metrics(metrics: Dict[str, float]) -> None:
         print(f"{name}: {metric}")
 
 
-class MetricsEngine:
-    __slots__ = "metrics", "labels", "preds"
+def mean_baseline_mae(dataset: SetDataset) -> float:
+    _, y = dataset.to_sklearn()
+    y_mean = y.mean()
+    return float(np.abs(y - y_mean).mean())
 
-    def __init__(self) -> None:
+
+def smape(y_true: np.ndarray, y_pred: np.ndarray) -> np.float64:
+    """
+    Return symmetric mean absolute percentage error.
+
+    None that the output is not in the [0, 200] "percentage" range but rather
+    in [0, 2].
+
+    See: https://en.wikipedia.org/wiki/Symmetric_mean_absolute_percentage_error
+
+    Args:
+        y_true: True labels.
+        y_pred: Predicted labels.
+
+    Returns:
+        Symmetric mean absolute percentage error.
+    """
+    abs_error = np.abs(y_true - y_pred)
+    abs_true = np.abs(y_true)
+    abs_pred = np.abs(y_pred)
+
+    denominator = (abs_true + abs_pred) / 2.0
+
+    # Mask denominator to avoid runtime warnings due to zero divisions.
+    masked_denominator = np.where(denominator < 1e-8, 1.0, denominator)
+
+    # If denominator is 0, then we must have that both true label and prediction
+    # are 0, so the error is 0. However, not manually adjusting yields NaNs due
+    # to zero division.
+    terms = np.where(denominator < 1e-8, 0.0, abs_error / masked_denominator)
+
+    return terms.mean()
+
+
+def mase(
+    y_true: np.ndarray, y_pred: np.ndarray, train_baseline_mae: float
+) -> np.float64:
+    """
+    Return mean absolute scaled error.
+
+    Args:
+        y_true: True labels.
+        y_pred: Predicted labels.
+        train_baseline_mae: Mean absolute error of a baseline prediction (e.g.
+            label mean) over training data.
+
+    Returns:
+        Mean absolute scaled error.
+    """
+    error = y_true - y_pred
+    scaled_error = error / train_baseline_mae
+    return np.abs(scaled_error).mean()
+
+
+class MetricsEngine:
+    __slots__ = ("metrics", "labels", "preds", "collate_predictions")
+
+    def __init__(self, collate_predictions: CollateFn) -> None:
+        """
+        Initialize metrics engine.
+
+        Args:
+            collate_predictions: Function to collate a list of accumulated
+                predictions into a single array.
+        """
         self.metrics: Dict[str, MetricFn] = {}
         self.labels: List[np.ndarray] = []
         self.preds: List[np.ndarray] = []
+
+        self.collate_predictions = collate_predictions
 
     def register_metric(self, name: str, fn: MetricFn) -> None:
         self.metrics[name] = fn
@@ -47,11 +117,9 @@ class MetricsEngine:
         self.labels.append(labels.numpy())
         self.preds.append(preds.numpy())
 
-    def _collate_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
-        raise NotImplementedError
-
     def compute_metrics(self) -> Dict[str, float]:
-        labels, preds = self._collate_predictions()
+        labels = self.collate_predictions(self.labels)
+        preds = self.collate_predictions(self.preds)
 
         results = {
             name: float(metric(labels, preds))
@@ -65,47 +133,52 @@ class MetricsEngine:
         self.preds = []
 
 
-class RegressionMetricsEngine(MetricsEngine):
-    def __init__(self) -> None:
-        super().__init__()
-        self.register_metric("mse", mean_squared_error)
-        self.register_metric("mae", mean_absolute_error)
-        self.register_metric("med_ae", median_absolute_error)
-        self.register_metric("max_error", max_error)
-        self.register_metric("mape", mean_absolute_percentage_error)
-        self.register_metric("r2", r2_score)
-
-    def _collate_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
-        labels = np.concatenate(self.labels)
-        preds = np.concatenate(self.preds)
-        return labels, preds
+def collate_regression_predictions(preds: List[np.ndarray]) -> np.ndarray:
+    return np.concatenate(preds)
 
 
-class ClassificationMetricsEngine(MetricsEngine):
-    def __init__(self) -> None:
-        super().__init__()
-        self.register_metric("accuracy", accuracy_score)
-        self.register_metric("balanced_accuracy", balanced_accuracy_score)
-        self.register_metric(
-            "f1_weighted", partial(f1_score, average="weighted")
-        )
-        self.register_metric(
-            "precision", partial(precision_score, average="weighted")
-        )
-        self.register_metric(
-            "recall", partial(recall_score, average="weighted")
-        )
-
-    def _collate_predictions(self) -> Tuple[np.ndarray, np.ndarray]:
-        labels = np.argmax(np.concatenate(self.labels), axis=1)
-        preds = np.argmax(np.concatenate(self.preds), axis=1)
-        return labels, preds
+def collate_classification_predictions(preds: List[np.ndarray]) -> np.ndarray:
+    return np.argmax(np.concatenate(preds), axis=1)
 
 
-def build_metrics_engine(task_config: TaskConfig) -> MetricsEngine:
+def build_metrics_engine(
+    task_config: TaskConfig, train_baseline_mae: Optional[float] = None
+) -> MetricsEngine:
     engine = None
     if is_classification_task(task_config):
-        engine = ClassificationMetricsEngine()
+        engine = MetricsEngine(
+            collate_predictions=collate_classification_predictions
+        )
+
+        engine.register_metric("accuracy", accuracy_score)
+        engine.register_metric("balanced_accuracy", balanced_accuracy_score)
+        engine.register_metric(
+            "f1_weighted", partial(f1_score, average="weighted")
+        )
+        engine.register_metric(
+            "precision", partial(precision_score, average="weighted")
+        )
+        engine.register_metric(
+            "recall", partial(recall_score, average="weighted")
+        )
     else:
-        engine = RegressionMetricsEngine()
+        if train_baseline_mae is None:
+            raise ValueError(
+                "For regression metrics, train_baseline_mae must be provided!"
+            )
+
+        engine = MetricsEngine(
+            collate_predictions=collate_regression_predictions
+        )
+
+        engine.register_metric("mse", mean_squared_error)
+        engine.register_metric("mae", mean_absolute_error)
+        engine.register_metric("med_ae", median_absolute_error)
+        engine.register_metric("max_error", max_error)
+        engine.register_metric("mape", mean_absolute_percentage_error)
+        engine.register_metric("r2", r2_score)
+        engine.register_metric("smape", smape)
+        engine.register_metric(
+            "mase", partial(mase, train_baseline_mae=train_baseline_mae)
+        )
     return engine
