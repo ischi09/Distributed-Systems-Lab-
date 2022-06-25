@@ -28,6 +28,10 @@ dependencies:
   - charset-normalizer=2.0.12=pyhd8ed1ab_0
   - click=8.1.3=py38h10201cd_0
   - colorama=0.4.4=pyh9f0ad1d_0
+<<<<<<< HEAD
+=======
+  - coverage=6.4.1=py38he5c2ac2_0
+>>>>>>> sebastian
   - cryptography=36.0.2=py38h7f91714_1
   - cycler=0.11.0=pyhd8ed1ab_0
   - debugpy=1.6.0=py38hea55cf5_0
@@ -47,6 +51,10 @@ dependencies:
   - idna=3.3=pyhd8ed1ab_0
   - importlib-metadata=4.11.3=py38h10201cd_1
   - importlib_resources=5.7.1=pyhd8ed1ab_0
+<<<<<<< HEAD
+=======
+  - iniconfig=1.1.1=pyh9f0ad1d_0
+>>>>>>> sebastian
   - ipykernel=6.13.0=py38h2cb4d76_0
   - ipython=8.2.0=py38h10201cd_0
   - ipython_genutils=0.2.0=py_1
@@ -119,6 +127,10 @@ dependencies:
   - pillow=9.1.0=py38h7ff1586_2
   - pip=22.0.4=pyhd8ed1ab_0
   - platformdirs=2.5.1=pyhd8ed1ab_0
+<<<<<<< HEAD
+=======
+  - pluggy=1.0.0=py38h10201cd_3
+>>>>>>> sebastian
   - prometheus_client=0.14.1=pyhd8ed1ab_0
   - prompt-toolkit=3.0.29=pyha770c72_0
   - prompt_toolkit=3.0.29=hd8ed1ab_0
@@ -127,6 +139,10 @@ dependencies:
   - pthread-stubs=0.4=h27ca646_1001
   - ptyprocess=0.7.0=pyhd3deb0d_0
   - pure_eval=0.2.2=pyhd8ed1ab_0
+<<<<<<< HEAD
+=======
+  - py=1.11.0=pyh6c4a22f_0
+>>>>>>> sebastian
   - pyasn1=0.4.8=py_0
   - pyasn1-modules=0.2.7=py_0
   - pycparser=2.21=pyhd8ed1ab_0
@@ -136,6 +152,11 @@ dependencies:
   - pyparsing=3.0.8=pyhd8ed1ab_0
   - pyrsistent=0.18.1=py38h33210d7_1
   - pysocks=1.7.1=py38h10201cd_5
+<<<<<<< HEAD
+=======
+  - pytest=7.1.2=py38h10201cd_0
+  - pytest-cov=3.0.0=pyhd8ed1ab_0
+>>>>>>> sebastian
   - python=3.8.12=hab31e5c_3_cpython
   - python-dateutil=2.8.2=pyhd8ed1ab_0
   - python-fastjsonschema=2.15.3=pyhd8ed1ab_0
@@ -167,6 +188,10 @@ dependencies:
   - testpath=0.6.0=pyhd8ed1ab_0
   - threadpoolctl=3.1.0=pyh8a188c0_0
   - tk=8.6.12=he1e0b03_0
+<<<<<<< HEAD
+=======
+  - toml=0.10.2=pyhd8ed1ab_0
+>>>>>>> sebastian
   - tomli=2.0.1=pyhd8ed1ab_0
   - tornado=6.1=py38h33210d7_3
   - tqdm=4.64.0=pyhd8ed1ab_0

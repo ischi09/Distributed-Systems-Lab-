@@ -4,7 +4,7 @@ import logging
 
 from torch.utils.tensorboard import SummaryWriter
 
-from config import Config
+from .config import Config
 
 
 def get_model_subdir(config: Config) -> str:
