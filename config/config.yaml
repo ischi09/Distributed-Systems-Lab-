@@ -20,7 +20,7 @@ experiment:
   results_out: results.csv
 
 model:
-  type: sorted_mlp_ds1t
+  type: mean_baseline
   data_dim: 1
   latent_dim: 5
 

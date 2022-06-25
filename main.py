@@ -23,7 +23,7 @@ def main(config: Config) -> None:
 
     train_set, valid_set, test_set = build_datasets(config)
 
-    trainer = build_trainer(config=config, delta=train_set.delta)
+    trainer = build_trainer(config=config, train_set=train_set)
 
     experiment = Experiment(
         config=config,
