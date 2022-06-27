@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from .config import Config
 from .tasks import ClassificationTask, get_task
-from .set_transformer.modules import SAB, PMA
+from .set_transformer.modules import SAB, PMA, ISAB
 from .fspool.fspool import FSPool
 
 
@@ -208,11 +208,16 @@ class GRUNet(nn.Module):
         ).requires_grad_()
 
         packed_input = torch.nn.utils.rnn.pack_padded_sequence(
-            x, mask.sum(axis=1).flatten().cpu(), batch_first=True, enforce_sorted=False
+            x,
+            mask.sum(axis=1).flatten().cpu(),
+            batch_first=True,
+            enforce_sorted=False,
         )
         packed_output, _ = self.gru(packed_input, h0.detach())
-        
-        out, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
+
+        out, _ = torch.nn.utils.rnn.pad_packed_sequence(
+            packed_output, batch_first=True
+        )
 
         final = self.fc(out[:, -1, :])
 
@@ -265,15 +270,22 @@ class LSTMNet(nn.Module):
         c0 = torch.zeros(
             self.n_layers, x.size(0), self.hidden_dim
         ).requires_grad_()
-        
+
         packed_input = torch.nn.utils.rnn.pack_padded_sequence(
-            x, mask.sum(axis=1).flatten().cpu(), batch_first=True, enforce_sorted=False
+            x,
+            mask.sum(axis=1).flatten().cpu(),
+            batch_first=True,
+            enforce_sorted=False,
         )
-        
-        packed_output, (_, _) = self.lstm(packed_input, (h0.detach(), c0.detach()))
-        
-        out, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
-        
+
+        packed_output, (_, _) = self.lstm(
+            packed_input, (h0.detach(), c0.detach())
+        )
+
+        out, _ = torch.nn.utils.rnn.pad_packed_sequence(
+            packed_output, batch_first=True
+        )
+
         return self.fc(out[:, -1, :])
 
 
@@ -407,6 +419,44 @@ class PnaDs1t(nn.Module):
         return self.mlp(scale_concat)
 
 
+class SetTransformerDs1t(nn.Module):
+    """
+    For optimal results, use with the following settings:
+
+    batch_size: 16
+    use_batch_sampler: True
+    latent_dim: 64
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        num_outputs: int,
+        output_dim: int,
+        num_inds: int = 32,
+        hidden_dim: int = 128,
+        num_heads: int = 4,
+        use_layer_norm: bool = False,
+    ):
+        super(SetTransformerDs1t, self).__init__()
+
+        self.enc = nn.Sequential(
+            SAB(input_dim, hidden_dim, num_heads, ln=use_layer_norm),
+            SAB(hidden_dim, hidden_dim, num_heads, ln=use_layer_norm),
+        )
+
+        self.dec = nn.Sequential(
+            PMA(hidden_dim, num_heads, num_outputs, ln=use_layer_norm),
+            nn.Linear(hidden_dim, output_dim),
+        )
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        x = self.enc(x)
+        x = self.dec(x)
+        x = x.squeeze(dim=-1)
+        return x
+
+
 def build_model(
     config: Config, delta: float
 ) -> Union[nn.Module, sklearn.base.BaseEstimator]:
@@ -464,7 +514,6 @@ def build_model(
         )
     elif model_config.type == "small_set_transformer":
         model = SmallSetTransformer(output_dim=output_dim)
-        
     elif model_config.type == "lstm":
         model = LSTMNet(
             input_dim=config.model.data_dim,
@@ -508,6 +557,14 @@ def build_model(
         model = PnaDs1t(
             output_dim=output_dim,
             delta=delta,
+        )
+    elif model_config.type == "set_transformer_ds1t":
+        model = SetTransformerDs1t(
+            input_dim=config.model.data_dim,
+            output_dim=config.model.data_dim,
+            hidden_dim=config.model.latent_dim,
+            num_heads=8,
+            num_outputs=1,
         )
     elif model_config.type == "mean_baseline":
         model = DummyRegressor()
