@@ -1,17 +1,19 @@
 # Setup
 
-## Conda Environment Setup
+## Requirements
 
-Run the following command in the repository root:
+* Python `3.9.10`
+* Packages and package versions as in `requirements.txt`
+
+## Virtual Environment
+
+Run the following commands in the repository root to create a virtual
+environment with all dependencies:
 
 ```sh
-conda env create -f environment.yml
-```
-
-Activate the created environment with:
-
-```sh
-conda activate set-ml
+python -m venv setml-env
+source setml-env/bin/activate
+python -m pip install -r requirements.txt
 ```
 
 ## Cloning Model Code
