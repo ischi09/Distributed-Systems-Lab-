@@ -223,13 +223,12 @@ class GRUNet(nn.Module):
         ).requires_grad_()
         # print("H0 shape", h0.shape)
 
-        # TODO: Implement pack_padded_sequence.
-        # packed_input = torch.nn.utils.rnn.pack_padded_sequence(
-        #     x, mask.sum(axis=1), batch_first=True, enforce_sorted=False
-        # )
-        # out, _ = self.gru(packed_input, h0.detach())
-
-        out, _ = self.gru(x, h0.detach())
+        packed_input = torch.nn.utils.rnn.pack_padded_sequence(
+            x, mask.sum(axis=1).flatten().cpu(), batch_first=True, enforce_sorted=False
+        )
+        packed_output, _ = self.gru(packed_input, h0.detach())
+        
+        out, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
 
         # print("out shape", out)
         # Need to reshape the output for the FC layer
@@ -300,10 +299,25 @@ class LSTMNet(nn.Module):
             self.n_layers, x.size(0), self.hidden_dim
         ).requires_grad_()
         # Need to detach, otherwise we go all the way to the front
-        out, (_, _) = self.lstm(x, (h0.detach(), c0.detach()))
+        
+        # print("X Shape", x.shape)
+        # print("Mask sum:", mask.sum(axis=1).flatten().cpu())
+        
+        packed_input = torch.nn.utils.rnn.pack_padded_sequence(
+            x, mask.sum(axis=1).flatten().cpu(), batch_first=True, enforce_sorted=False
+        )
+        
+        packed_output, (_, _) = self.lstm(packed_input, (h0.detach(), c0.detach()))
 
         # Need to reshape the output for the FC layer
         # This output in shape (batch_size, output_dim), probs need reshapeing
+        
+        out, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
+        
+        # print("Out", out)
+        # print("Out shape", out.shape)
+        # print("Out type", type(out))
+        
         return self.fc(out[:, -1, :])
 
 
