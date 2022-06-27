@@ -199,29 +199,13 @@ class GRUNet(nn.Module):
         super(GRUNet, self).__init__()
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
-        # self.input_dim = input_dim
-        # self.output_dim = output_dim
         self.gru = nn.GRU(input_dim, hidden_dim, n_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-        # self.relu = nn.ReLu
-
-    # Not hundred percent sure how i should handle the hidden states here.
-    # Will need to pick one of these
     def forward(self, x, mask) -> torch.Tensor:
-        """Hidden state generated through Forward propagation"""
-
-        # print("hidden dim:", self.hidden_dim)
-        # print("n_layers:", self.n_layers)
-        # print("input_dim:", self.input_dim)
-        # print("output_dim:", self.output_dim)
-        # print("X shape", x.shape)
-        # print("mask shape", mask.shape)
-
         h0 = torch.zeros(
             self.n_layers, x.size(0), self.hidden_dim
         ).requires_grad_()
-        # print("H0 shape", h0.shape)
 
         packed_input = torch.nn.utils.rnn.pack_padded_sequence(
             x, mask.sum(axis=1).flatten().cpu(), batch_first=True, enforce_sorted=False
@@ -230,11 +214,8 @@ class GRUNet(nn.Module):
         
         out, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
 
-        # print("out shape", out)
-        # Need to reshape the output for the FC layer
-        # This output in shape (batch_size, output_dim), probs need reshapeing
         final = self.fc(out[:, -1, :])
-        # print("Final shape", final)
+
         return final
 
 
@@ -252,18 +233,6 @@ class SortedGRU(GRUNet):
     def forward(self, x, mask) -> torch.Tensor:
         x, _ = torch.sort(x, dim=1)
         return super(SortedGRU, self).forward(x, mask)
-
-
-# Code from another source which seems to handle the hidden layers differently
-#     def forward(self, x, h):
-#         out, h = self.gru(x, h)
-#         out = self.fc(self.relu(out[:,-1]))
-#         return out, h
-
-#     def init_hidden(self, batch_size):
-#         weight = next(self.parameters()).data
-#         hidden = weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device)
-#         return hidden
 
 
 class LSTMNet(nn.Module):
@@ -287,10 +256,8 @@ class LSTMNet(nn.Module):
             dropout=drop_prob,
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
-        # self.relu = nn.ReLU()
 
     def forward(self, x, mask) -> torch.Tensor:
-        """Hidden State generated through Forward propagation again"""
         h0 = torch.zeros(
             self.n_layers, x.size(0), self.hidden_dim
         ).requires_grad_()
@@ -298,25 +265,14 @@ class LSTMNet(nn.Module):
         c0 = torch.zeros(
             self.n_layers, x.size(0), self.hidden_dim
         ).requires_grad_()
-        # Need to detach, otherwise we go all the way to the front
-        
-        # print("X Shape", x.shape)
-        # print("Mask sum:", mask.sum(axis=1).flatten().cpu())
         
         packed_input = torch.nn.utils.rnn.pack_padded_sequence(
             x, mask.sum(axis=1).flatten().cpu(), batch_first=True, enforce_sorted=False
         )
         
         packed_output, (_, _) = self.lstm(packed_input, (h0.detach(), c0.detach()))
-
-        # Need to reshape the output for the FC layer
-        # This output in shape (batch_size, output_dim), probs need reshapeing
         
         out, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
-        
-        # print("Out", out)
-        # print("Out shape", out.shape)
-        # print("Out type", type(out))
         
         return self.fc(out[:, -1, :])
 
@@ -341,19 +297,6 @@ class SortedLSTM(LSTMNet):
     def forward(self, x, mask) -> torch.Tensor:
         x, _ = torch.sort(x, dim=1)
         return super(SortedLSTM, self).forward(x, mask)
-
-
-# Code from another source which seems to handle the hidden layers differently
-#     def forward(self, x, h):
-#         out, h = self.lstm(x, h)
-#         out = self.fc(self.relu(out[:,-1]))
-#         return out, h
-
-#     def init_hidden(self, batch_size):
-#         weight = next(self.parameters()).data
-#         hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device),
-#                   weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(device))
-#         return hidden
 
 
 class DeepSetsDs1t(nn.Module):
@@ -521,7 +464,7 @@ def build_model(
         )
     elif model_config.type == "small_set_transformer":
         model = SmallSetTransformer(output_dim=output_dim)
-    # TODO need to know how to handle the hidden dimension, n_layers and DROP PROBABLITY!! on initailisation.
+        
     elif model_config.type == "lstm":
         model = LSTMNet(
             input_dim=config.model.data_dim,
