@@ -4,16 +4,17 @@ from typing import Dict, Tuple
 
 from tqdm import tqdm
 
+import sklearn
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
-from config import Config
-from datasets import SetDataset, get_data_loader
-from tasks import get_task, is_classification_task
-from models import build_model
-from metrics import build_metrics_engine, print_metrics
-from log import build_summary_writer, get_model_subdir
+from .config import Config
+from .datasets import SetDataset, get_data_loader
+from .tasks import get_task, is_classification_task
+from .models import build_model
+from .metrics import build_metrics_engine, print_metrics, mean_baseline_mae
+from .log import build_summary_writer, get_model_subdir
 
 
 class Trainer:
@@ -34,12 +35,12 @@ class TorchTrainer(Trainer):
         self,
         config: Config,
         model: torch.nn.Module,
+        train_set: SetDataset,
     ) -> None:
         super().__init__()
 
-        self.device = torch.device(
-            "cuda" if config.experiment.use_gpu else "cpu"
-        )
+        use_gpu = config.experiment.use_gpu and torch.cuda.is_available()
+        self.device = torch.device("cuda" if use_gpu else "cpu")
 
         self.config = config
 
@@ -50,17 +51,25 @@ class TorchTrainer(Trainer):
         os.makedirs(model_dir, exist_ok=True)
         self.best_model_filename = os.path.join(model_dir, "best_model.pth")
 
-        self.optimizer = optim.Adam(
+        self.optimizer = optim.AdamW(
             self.model.parameters(),
             lr=config.experiment.lr,
             weight_decay=config.experiment.weight_decay,
+        )
+
+        self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer=self.optimizer,
+            factor=config.experiment.lr_scheduler_factor,
+            patience=config.experiment.lr_scheduler_patience,
         )
 
         task = get_task(config.task)
         self.loss_fn = task.loss_fn
         self.is_classification_task = is_classification_task(config.task)
 
-        self.metrics_engine = build_metrics_engine(config.task)
+        self.metrics_engine = build_metrics_engine(
+            config.task, train_baseline_mae=mean_baseline_mae(train_set)
+        )
 
         self.summary_writer = build_summary_writer(config)
 
@@ -104,6 +113,11 @@ class TorchTrainer(Trainer):
                 epoch_counter=epoch_counter,
             )
             print(f"Average validation loss: {avg_valid_loss}")
+
+            self.lr_scheduler.step(avg_valid_loss)
+            print("=== Parameters ===")
+            print(f"lr: {self.optimizer.param_groups[0]['lr']}")
+
             print_metrics(valid_metrics)
 
             if self._has_loss_improved(best_valid_loss, avg_valid_loss):
@@ -278,9 +292,84 @@ class TorchTrainer(Trainer):
         return self.config.experiment.min_delta < best_loss - new_loss
 
 
-def build_trainer(config: Config, delta: float) -> Trainer:
+class SklearnTrainer(Trainer):
+    def __init__(
+        self,
+        config: Config,
+        model: sklearn.base.BaseEstimator,
+        train_set: SetDataset,
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.metrics_engine = build_metrics_engine(
+            config.task, train_baseline_mae=mean_baseline_mae(train_set)
+        )
+
+    def train(
+        self, train_set: SetDataset, valid_set: SetDataset
+    ) -> Dict[str, float]:
+        print("Training model...")
+        X_train, y_train = train_set.to_sklearn()
+        self.model.fit(X_train, y_train)
+        y_train_pred = self.model.predict(X_train)
+
+        self.metrics_engine.reset()
+        self.metrics_engine.accumulate_predictions(
+            labels=torch.from_numpy(y_train),
+            preds=torch.from_numpy(y_train_pred),
+        )
+        train_metrics = self.metrics_engine.compute_metrics()
+        print_metrics(train_metrics)
+
+        print("\nValidating model...")
+        X_valid, y_valid = valid_set.to_sklearn()
+        y_valid_pred = self.model.predict(X_valid)
+
+        self.metrics_engine.reset()
+        self.metrics_engine.accumulate_predictions(
+            labels=torch.from_numpy(y_valid),
+            preds=torch.from_numpy(y_valid_pred),
+        )
+        valid_metrics = self.metrics_engine.compute_metrics()
+        print_metrics(valid_metrics)
+
+        return {
+            "epochs": 1,
+            "avg_train_loss": train_metrics["mse"],
+            "best_valid_loss": valid_metrics["mse"],
+        }
+
+    def test(self, test_set: SetDataset) -> Dict[str, float]:
+        print("\nTesting model...")
+
+        X_test, y_test = test_set.to_sklearn()
+        y_test_pred = self.model.predict(X_test)
+
+        self.metrics_engine.reset()
+        self.metrics_engine.accumulate_predictions(
+            labels=torch.from_numpy(y_test),
+            preds=torch.from_numpy(y_test_pred),
+        )
+        test_metrics = self.metrics_engine.compute_metrics()
+        print_metrics(test_metrics)
+
+        test_metrics = {
+            f"test_{name}": metric for name, metric in test_metrics.items()
+        }
+        test_metrics.update({"avg_test_loss": test_metrics["test_mse"]})
+        return test_metrics
+
+
+def build_trainer(config: Config, train_set: SetDataset) -> Trainer:
     model = build_model(
         config=config,
-        delta=delta,
+        delta=train_set.delta,
     )
-    return TorchTrainer(config=config, model=model)
+    if "baseline" in config.model.type:
+        trainer = SklearnTrainer(
+            config=config, model=model, train_set=train_set
+        )
+    else:
+        trainer = TorchTrainer(config=config, model=model, train_set=train_set)
+
+    return trainer
