@@ -5,11 +5,13 @@ from typing import Any, List, Dict
 
 import pandas as pd
 
-from config import Config
-from datasets import SetDataset
-from tasks import get_task
-from models import count_parameters
-from trainers import Trainer
+import torch
+
+from .config import Config
+from .datasets import SetDataset
+from .tasks import get_task
+from .models import count_parameters
+from .trainers import Trainer
 
 
 def to_list_dict(d: Dict[str, Any]) -> Dict[str, List[Any]]:
@@ -49,7 +51,10 @@ class Experiment:
 
     def _init_results_logging(self) -> None:
         model_info = self.config.model._content
-        model_info["n_params"] = count_parameters(self.trainer.model)
+        if "baseline" in self.config.model.type:
+            model_info["n_params"] = 0
+        else:
+            model_info["n_params"] = count_parameters(self.trainer.model)
 
         task_info = self.config.task._content
 
@@ -62,6 +67,9 @@ class Experiment:
         experiment_info = self.config.experiment._content
         task = get_task(self.config.task)
         experiment_info["loss"] = task.loss
+        experiment_info["gpu_enabled"] = (
+            self.config.experiment.use_gpu and torch.cuda.is_available()
+        )
 
         print("*** Experiment Setup ***")
 

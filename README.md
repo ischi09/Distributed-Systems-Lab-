@@ -1,30 +1,42 @@
-# Neural Networks - Set Functions
+# Setup
 
 ## Conda Environment Setup
 
 Run the following command in the repository root:
 
-```bash
+```sh
 conda env create -f environment.yml
+```
+
+Activate the created environment with:
+
+```sh
+conda activate set-ml
 ```
 
 ## Cloning Model Code
 
-From the repository root, move to the `src` folder and clone the
+From the repository root, move to the `setml` folder and clone the
 [Set Transformer repository](https://github.com/juho-lee/set_transformer):
 
-```bash
-cd src
+```sh
 git clone https://github.com/juho-lee/set_transformer.git
 ```
 
 as well as the [FSPool repository](https://github.com/Cyanogenoid/fspool):
 
-```bash
+```sh
 git clone https://github.com/Cyanogenoid/fspool.git
 ```
 
-# Experiment Settings
+# Running Experiments
+
+To set up an experiment, change the `config/config.yaml` file to the desired
+experimental setup, then in the root directory of this repository run:
+
+```sh
+python main.py
+```
 
 ## Available Models
 
@@ -51,3 +63,12 @@ git clone https://github.com/Cyanogenoid/fspool.git
 | Largest pair sum        | `largest_pair_sum`       | Largest sum of a pair of numbers in the set             | {2, 1, 4, -10, 7}&rarr;11 | {2, 1, 1, 4, -10}&rarr;6 |
 | Largest triplet sum     | `largest_triple_sum`     | Largest sum of a triplet of numbers in the set          | {2, 1, 4, -10, 7}&rarr;13 | {2, 1, 1, 4, -10}&rarr;7 |
 | Contains even number    | `contains_even`          | 1 if the set contains an even number, 0 otherwise       | {2, 1, 4, -10, 7}&rarr;1  | {3, 1, 1, 5, -9}&rarr;0  |
+
+# Unit Tests
+
+We use `pytest` for unit testing. To run the unit tests, execute the following
+command in the root directory of this repository:
+
+```sh
+pytest --ignore=setml/fspool
+```

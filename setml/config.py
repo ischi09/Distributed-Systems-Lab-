@@ -6,6 +6,7 @@ class Paths:
     log: str
     checkpoints: str
     results: str
+    datasets: str
 
 
 @dataclass
@@ -18,6 +19,8 @@ class Experiment:
     random_seed: int
     weight_decay: float
     grad_norm_threshold: float
+    lr_scheduler_factor: float
+    lr_scheduler_patience: int
     use_batch_sampler: bool
     use_gpu: bool
     results_out: str
@@ -27,7 +30,7 @@ class Experiment:
 class Model:
     type: str
     data_dim: int
-    laten_dim: int
+    latent_dim: int
 
 
 @dataclass
@@ -44,6 +47,8 @@ class Datasets:
     train_samples: int
     valid_samples: int
     test_samples: int
+    cache: bool
+    use_cached: bool
 
 
 @dataclass

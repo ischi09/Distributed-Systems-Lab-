@@ -1,7 +1,8 @@
 paths:
-  log: ${hydra:runtime.cwd}/../log
-  checkpoints: ${hydra:runtime.cwd}/../checkpoints
-  results: ${hydra:runtime.cwd}/../results
+  log: ${hydra:runtime.cwd}/log
+  checkpoints: ${hydra:runtime.cwd}/checkpoints
+  results: ${hydra:runtime.cwd}/results
+  datasets: ${hydra:runtime.cwd}/datasets
 
 experiment:
   max_epochs: 500
@@ -12,23 +13,27 @@ experiment:
   random_seed: 99
   weight_decay: 5e-3
   grad_norm_threshold: 10.0
+  lr_scheduler_factor: 0.75
+  lr_scheduler_patience: 5
   use_batch_sampler: False
-  use_gpu: False
+  use_gpu: True
   results_out: results.csv
 
 model:
   type: gru
   data_dim: 1
-  laten_dim: 10
+  latent_dim: 5
 
 task:
-  max_set_size: 8
+  max_set_size: 10
   min_value: -100
   max_value: 100
-  label: sum
+  label: desperate_student_1_tuple
   multisets: True
 
 datasets:
   train_samples: 10000
   valid_samples: 1000
   test_samples: 1000
+  cache: True
+  use_cached: True
