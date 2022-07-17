@@ -1,5 +1,8 @@
 ## Custom Excludes ##
 
+# Environment
+setml-env
+
 # Temporary directory
 tmp/
 

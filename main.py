@@ -17,7 +17,7 @@ def set_random_seeds(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-@hydra.main(config_path=os.path.join("config"), config_name="config")
+@hydra.main(version_base=None, config_path="config", config_name="config")
 def main(config: Config) -> None:
     set_random_seeds(config.experiment.random_seed)
 
