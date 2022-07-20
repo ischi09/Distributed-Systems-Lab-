@@ -12,10 +12,11 @@ experiment.random_seed=9,99,999,9999,99999 \
 paths.log=/itet-stor/ishamanna/net_scratch/log \
 paths.checkpoints=/itet-stor/ishamanna/net_scratch/checkpoints \
 paths.results=/itet-stor/ishamanna/net_scratch/results \
-experiment.results_out=master_super_desperate.csv \
-task.label=desperate_student_1_tuple,desperate_student_2_tuple,desperate_student_3_tuple,desperate_student_4_tuple,desperate_student_5_tuple,desperate_student_6_tuple \
+experiment.results_out=master_baseline.csv \
+task.label=sum,largest_pair_sum,largest_triple_sum,max,cardinality,largest_contiguous_sum,longest_seq_length \
 task.max_set_size=16 \
 task.multisets=True \
-model.type=deepsets_mlp_sum,deepsets_mlp_fspool,sorted_mlp,mlp,pna,small_set_transformer
+model.type=mean_baseline
 
 cd $old_dir
+
