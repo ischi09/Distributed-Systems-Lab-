@@ -9,6 +9,7 @@ cd ../
 
 python main.py -m \
 experiment.random_seed=9,99,999,9999,99999 \
+experiment.patience=15 \
 paths.log=/itet-stor/ishamanna/net_scratch/log \
 paths.checkpoints=/itet-stor/ishamanna/net_scratch/checkpoints \
 paths.results=/itet-stor/ishamanna/net_scratch/results \
