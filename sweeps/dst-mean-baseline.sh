@@ -8,8 +8,8 @@ cd ../
 
 python main.py -m \
 experiment.random_seed=9,99,999,9999,99999 \
-experiment.results_out=dst-opt-vs-non-opt-results.csv \
+experiment.results_out=dst-mean-baseline-results.csv \
 task.label=desperate_student_1_tuple,desperate_student_2_tuple,desperate_student_3_tuple,desperate_student_4_tuple,desperate_student_5_tuple \
-model.type=deepsets_mlp_sum,deepsets_ds1t
+model.type=mean_baseline
 
 cd $old_dir
