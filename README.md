@@ -89,6 +89,19 @@ python main.py model.type=set_transformer_ds1t model.latent_dim=64 experiment.ba
 | Largest triplet sum     | `largest_triple_sum`     | Largest sum of a triplet of numbers in the set          | {2, 1, 4, -10, 7}&rarr;13 | {2, 1, 1, 4, -10}&rarr;7 |
 | Contains even number    | `contains_even`          | 1 if the set contains an even number, 0 otherwise       | {2, 1, 4, -10, 7}&rarr;1  | {3, 1, 1, 5, -9}&rarr;0  |
 
+For the Desperate Student M-Tuple task, use:
+
+```
+desperate_student_<M>_tuple
+```
+
+and replace `<M>` by the desired order of the tuple, available are 1 to 6 so
+for example use for triples use:
+
+```
+desperate_student_3_tuple
+```
+
 # Unit Tests
 
 We use `pytest` for unit testing. To run the unit tests, execute the following
