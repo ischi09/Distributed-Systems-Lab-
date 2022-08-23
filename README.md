@@ -1,17 +1,19 @@
 # Setup
 
-## Conda Environment Setup
+## Requirements
 
-Run the following command in the repository root:
+* Python `3.9.10`
+* Packages and package versions as in `requirements.txt`
+
+## Virtual Environment
+
+Run the following commands in the repository root to create a virtual
+environment with all dependencies:
 
 ```sh
-conda env create -f environment.yml
-```
-
-Activate the created environment with:
-
-```sh
-conda activate set-ml
+python -m venv setml-env
+source setml-env/bin/activate
+python -m pip install -r requirements.txt
 ```
 
 ## Cloning Model Code
@@ -36,6 +38,29 @@ experimental setup, then in the root directory of this repository run:
 
 ```sh
 python main.py
+```
+
+## Desperate Student M-Tuple
+
+To run models optimized for the Desperate Student M-Tuple task, use the
+following commands:
+
+### Deep Sets
+
+```sh
+python main.py model.type=deepsets_ds1t model.latent_dim=5
+```
+
+### Sorted MLP
+
+```sh
+python main.py model.type=sorted_mlp_ds1t model.latent_dim=5
+```
+
+### Set Transformer
+
+```sh
+python main.py model.type=set_transformer_ds1t model.latent_dim=64 experiment.batch_size=16 experiment.use_batch_sampler=True
 ```
 
 ## Available Models
