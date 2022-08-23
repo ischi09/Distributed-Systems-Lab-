@@ -1,4 +1,0 @@
-  File "run.py", line 13
-    def set_random_seeds(seed: int) -> None:
-                             ^
-SyntaxError: invalid syntax
